@@ -1,0 +1,8 @@
+# Graph-Engine Phase 1 dependencies
+watchfiles
+networkx
+fastapi
+uvicorn
+
+# For testing
+pytest
