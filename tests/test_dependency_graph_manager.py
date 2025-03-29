@@ -5,10 +5,11 @@ Tests for the dependency_graph_manager module.
 import os
 import tempfile
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, call
 
 from graph_core.manager import DependencyGraphManager
 from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.dynamic.import_hook import FunctionCallEvent
 
 
 class TestDependencyGraphManager(unittest.TestCase):
@@ -264,6 +265,147 @@ class TestDependencyGraphManager(unittest.TestCase):
         self.storage.add_or_update_file.assert_any_call('test1.py', mock_parser.parse_file.return_value)
         self.storage.add_or_update_file.assert_any_call('test2.js', mock_parser.parse_file.return_value)
         self.storage.remove_file.assert_called_once_with('test3.ts')
+    
+    @patch('graph_core.manager.initialize_hook')
+    @patch('threading.Thread')
+    def test_start_python_instrumentation(self, mock_thread_class, mock_initialize_hook):
+        """Test starting Python instrumentation."""
+        # Set up mock thread
+        mock_thread = Mock()
+        mock_thread_class.return_value = mock_thread
+        
+        # Call the method
+        watch_dir = 'src/test_dir'
+        poll_interval = 0.75
+        self.manager.start_python_instrumentation(watch_dir, poll_interval)
+        
+        # Verify initialize_hook was called with the correct directory
+        expected_dir = os.path.abspath(watch_dir)
+        mock_initialize_hook.assert_called_once_with(expected_dir)
+        
+        # Verify the thread was created and started
+        mock_thread_class.assert_called_once()
+        self.assertEqual(mock_thread_class.call_args[1]['target'], self.manager._process_function_call_events)
+        self.assertTrue(mock_thread_class.call_args[1]['daemon'])
+        mock_thread.start.assert_called_once()
+        
+        # Verify instance variables were set correctly
+        self.assertTrue(self.manager.instrumentation_active)
+        self.assertEqual(self.manager.instrumentation_thread, mock_thread)
+        self.assertEqual(self.manager.instrumentation_watch_dir, expected_dir)
+        self.assertEqual(self.manager.instrumentation_poll_interval, poll_interval)
+    
+    @patch('graph_core.manager.initialize_hook')
+    @patch('threading.Thread')
+    def test_start_python_instrumentation_already_active(self, mock_thread_class, mock_initialize_hook):
+        """Test starting Python instrumentation when it's already active."""
+        # Simulate already active instrumentation
+        self.manager.instrumentation_active = True
+        
+        # Call the method
+        self.manager.start_python_instrumentation()
+        
+        # Verify initialize_hook was not called
+        mock_initialize_hook.assert_not_called()
+        
+        # Verify the thread was not created
+        mock_thread_class.assert_not_called()
+    
+    @patch('threading.Thread')
+    def test_stop_python_instrumentation(self, mock_thread_class):
+        """Test stopping Python instrumentation."""
+        # Set up for active instrumentation
+        mock_thread = Mock()
+        mock_thread.is_alive.return_value = True
+        self.manager.instrumentation_active = True
+        self.manager.instrumentation_thread = mock_thread
+        
+        # Call the method
+        self.manager.stop_python_instrumentation()
+        
+        # Verify thread was joined
+        mock_thread.join.assert_called_once_with(timeout=2.0)
+        
+        # Verify instance variable was updated
+        self.assertFalse(self.manager.instrumentation_active)
+    
+    def test_stop_python_instrumentation_not_active(self):
+        """Test stopping Python instrumentation when it's not active."""
+        # Ensure instrumentation is not active
+        self.manager.instrumentation_active = False
+        
+        # Call the method
+        self.manager.stop_python_instrumentation()
+        
+        # No assertions needed - just verify no exceptions
+    
+    @patch('graph_core.manager.get_function_calls')
+    @patch('time.sleep')
+    def test_process_function_call_events(self, mock_sleep, mock_get_function_calls):
+        """Test processing function call events from the queue."""
+        # Set up mocks
+        event1 = FunctionCallEvent(module_name='test_module', function_name='test_func', filename='test_file.py')
+        event2 = FunctionCallEvent(module_name='test_module', function_name='nested.func', filename='test_file.py')
+        
+        # Configure mock to return events once, then empty list to break the loop
+        mock_get_function_calls.side_effect = [[event1, event2], []]
+        
+        # Create a spy for _process_function_call_event
+        self.manager._process_function_call_event = Mock()
+        
+        # Set up to run only for one loop
+        self.manager.instrumentation_active = True
+        
+        def stop_after_first_call(*args, **kwargs):
+            self.manager.instrumentation_active = False
+        
+        mock_sleep.side_effect = stop_after_first_call
+        
+        # Call the method
+        self.manager._process_function_call_events()
+        
+        # Verify events were processed
+        self.manager._process_function_call_event.assert_has_calls([
+            call(event1),
+            call(event2)
+        ])
+        
+        # Verify sleep was called with the correct interval
+        mock_sleep.assert_called_once_with(self.manager.instrumentation_poll_interval)
+    
+    def test_process_function_call_event(self):
+        """Test processing a single function call event."""
+        # Set up a real instance with a mocked storage
+        real_storage = Mock(spec=InMemoryGraphStorage)
+        manager = DependencyGraphManager(real_storage)
+        
+        # Mock the necessary methods
+        manager.update_function_call_count = Mock()
+        manager.process_dynamic_event = Mock()
+        
+        # Create test events
+        event1 = FunctionCallEvent(module_name='test_module', function_name='simple_func', filename='test_file.py')
+        event2 = FunctionCallEvent(module_name='test_module', function_name='outer_func.inner_func', filename='test_file.py')
+        
+        # Process the simple function event
+        manager._process_function_call_event(event1)
+        
+        # Verify the function call count was updated
+        manager.update_function_call_count.assert_called_once_with('function:test_module.simple_func')
+        manager.process_dynamic_event.assert_not_called()
+        
+        # Reset mocks
+        manager.update_function_call_count.reset_mock()
+        manager.process_dynamic_event.reset_mock()
+        
+        # Process the nested function event
+        manager._process_function_call_event(event2)
+        
+        # Verify both the function call count and dynamic event were processed
+        manager.update_function_call_count.assert_called_once_with('function:test_module.inner_func')
+        manager.process_dynamic_event.assert_called_once_with(
+            'call', 'function:test_module.outer_func', 'function:test_module.inner_func'
+        )
 
 
 if __name__ == '__main__':
