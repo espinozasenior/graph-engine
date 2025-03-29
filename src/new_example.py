@@ -1,11 +1,3 @@
-test = "test"
-
-def sayhello():
-    print("hello")
-
-def sayhello(name, age):
-    print(f"hello, my name is {name} and i am {age} years old")
-
 class Person:
     def __init__(self, name, age):
         self.name = name
@@ -13,3 +5,11 @@ class Person:
 
     def sayhello(self):
         print(f"hello, my name is {self.name} and i am {self.age} years old")
+        
+class Employee(Person):
+    def __init__(self, name, age, salary):
+        super().__init__(name, age)
+        self.salary = salary
+
+    def sayhello(self):
+        super().sayhello()

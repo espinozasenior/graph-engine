@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-Graph Manager Runner
+API Server Runner
 
-This script integrates the file watcher with the dependency graph manager
-to build and maintain a code dependency graph, and provides API access through
-a FastAPI server.
+This script runs the FastAPI server that exposes the dependency graph API.
+It can be run alongside the graph manager to provide HTTP access to the graph data.
 """
 
 import os
@@ -12,11 +11,12 @@ import sys
 import argparse
 import logging
 import threading
+import time
 import uvicorn
 
 from graph_core.storage.in_memory_graph import InMemoryGraphStorage
 from graph_core.manager import DependencyGraphManager
-from graph_core.watchers.file_watcher import start_file_watcher, stop_file_watcher
+from graph_core.watchers.file_watcher import start_file_watcher
 from graph_core.api import create_app
 
 # Set up logging
@@ -30,27 +30,22 @@ logger = logging.getLogger(__name__)
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description='Run the dependency graph manager with file watching and API server.'
+        description='Run the Graph Engine API server.'
     )
     parser.add_argument(
-        '--watch-dir', '-w',
-        default='src',
+        '--host', default='127.0.0.1',
+        help='Host to bind the server to. Default: 127.0.0.1'
+    )
+    parser.add_argument(
+        '--port', type=int, default=8000,
+        help='Port to bind the server to. Default: 8000'
+    )
+    parser.add_argument(
+        '--watch-dir', '-w', default='src',
         help='Directory to watch for file changes. Default: src/'
     )
     parser.add_argument(
-        '--host',
-        default='127.0.0.1',
-        help='Host to bind the API server to. Default: 127.0.0.1'
-    )
-    parser.add_argument(
-        '--port',
-        type=int,
-        default=8000,
-        help='Port to bind the API server to. Default: 8000'
-    )
-    parser.add_argument(
-        '--verbose', '-v',
-        action='store_true',
+        '--verbose', '-v', action='store_true',
         help='Enable verbose logging'
     )
     return parser.parse_args()
@@ -62,7 +57,6 @@ def start_watcher(manager, watch_dir):
     
     try:
         # Process existing files first
-        logger.info(f"Processing existing files in {watch_dir}...")
         for root, _, files in os.walk(watch_dir):
             for file in files:
                 if file.endswith('.py'):
@@ -70,8 +64,7 @@ def start_watcher(manager, watch_dir):
                     logger.debug(f"Processing existing file: {filepath}")
                     manager.on_file_event('created', filepath)
         
-        # Start the file watcher
-        logger.info(f"Watching for file changes in {watch_dir}")
+        # Start watching for changes
         start_file_watcher(
             callback=manager.on_file_event,
             watch_dir=watch_dir
@@ -102,7 +95,7 @@ def main():
         logger.info("Creating dependency graph manager...")
         manager = DependencyGraphManager(storage)
         
-        # Start the file watcher in a background thread
+        # Start the file watcher in a separate thread
         watcher_thread = threading.Thread(
             target=start_watcher,
             args=(manager, args.watch_dir),
@@ -116,22 +109,12 @@ def main():
         
         # Run the API server
         logger.info(f"Starting API server at http://{args.host}:{args.port}")
-        print(f"Graph Engine running:")
-        print(f"- Watching directory: {args.watch_dir}")
-        print(f"- API server: http://{args.host}:{args.port}")
-        print("Available endpoints:")
-        print(f"  - GET http://{args.host}:{args.port}/graph/nodes")
-        print(f"  - GET http://{args.host}:{args.port}/graph/edges")
-        print("Press Ctrl+C to stop...")
-        
-        # Start the API server (this will block until the server is stopped)
         uvicorn.run(app, host=args.host, port=args.port)
         
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt. Shutting down...")
-        stop_file_watcher()
     except Exception as e:
-        logger.exception(f"Error running graph manager: {str(e)}")
+        logger.exception(f"Error running API server: {str(e)}")
         return 1
     
     return 0
