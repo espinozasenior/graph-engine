@@ -9,7 +9,6 @@ import os
 import sys
 from datetime import datetime, timedelta
 
-
 class BaseClass:
     """A base class to demonstrate inheritance."""
     

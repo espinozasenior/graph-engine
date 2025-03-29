@@ -13,3 +13,8 @@ class Person:
 
     def sayhello(self):
         print(f"hello, my name is {self.name} and i am {self.age} years old")
+        
+    def __str__(self):
+        return f"Person(name={self.name}, age={self.age})"
+        
+    

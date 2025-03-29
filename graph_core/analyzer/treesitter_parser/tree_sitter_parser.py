@@ -7,11 +7,28 @@ and extract structural information like functions, classes, and imports.
 import os
 import uuid
 import logging
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Set
 
 try:
     from tree_sitter import Language, Parser
+    # Check whether Language constructor takes one or two arguments
+    LANGUAGE_REQUIRES_NAME = True
+    try:
+        # Try initializing with two args and see if it fails
+        Language("dummy_path")
+        LANGUAGE_REQUIRES_NAME = False
+    except TypeError as e:
+        if "__init__() takes exactly 1 argument" in str(e):
+            LANGUAGE_REQUIRES_NAME = False
+        else:
+            # Different error, likely due to file not found, which means it was expecting two args
+            LANGUAGE_REQUIRES_NAME = True
+    except Exception:
+        # Any other exception means we probably need two arguments
+        pass
 except ImportError:
     raise ImportError(
         "The tree_sitter package is required. Please install it with: pip install tree-sitter"
@@ -40,6 +57,9 @@ class TreeSitterParser:
         'typescript': ['.ts', '.tsx'],
     }
     
+    # Class-level cache for parsers to avoid recreating them for each file
+    _parsers = {}
+    
     def __init__(self, language: str):
         """
         Initialize the parser for a specific language.
@@ -49,7 +69,7 @@ class TreeSitterParser:
             
         Raises:
             ValueError: If the language is not supported
-            RuntimeError: If the language grammar cannot be loaded
+            RuntimeError: If the language grammar cannot be loaded and initialized
         """
         if language not in self.SUPPORTED_LANGUAGES:
             supported = ", ".join(self.SUPPORTED_LANGUAGES.keys())
@@ -59,27 +79,61 @@ class TreeSitterParser:
         
         self.language = language
         
-        # Path to the language definition file
-        language_dir = Path(__file__).parent / "languages"
-        language_file = language_dir / f"{language}.so"
-        
-        if not language_file.exists():
-            raise RuntimeError(
-                f"Language grammar file {language_file} not found. "
-                f"Please check README.md in {language_dir} directory for installation instructions."
-            )
-        
-        try:
-            # Load the language and create a parser
-            self.tree_sitter_language = Language(str(language_file), language)
-            self.parser = Parser()
-            self.parser.set_language(self.tree_sitter_language)
-            logger.info(f"Initialized TreeSitterParser for {language}")
-        except Exception as e:
-            raise RuntimeError(f"Failed to load language grammar: {str(e)}")
+        # Try to use cached parser first
+        if language in self._parsers:
+            self.parser = self._parsers[language]
+            logger.debug(f"Using cached parser for {language}")
+        else:
+            # Try to load from language file
+            try:
+                self.parser = self._load_parser_from_file()
+                TreeSitterParser._parsers[language] = self.parser
+                logger.info(f"Initialized TreeSitterParser for {language} from file")
+            except Exception as e:
+                logger.warning(f"Could not load language from file: {str(e)}")
+                raise RuntimeError(f"Failed to initialize parser for {language}: {str(e)}")
         
         # Track processed nodes to avoid duplicates
         self._processed_nodes: Set[str] = set()
+    
+    def _load_parser_from_file(self) -> Parser:
+        """
+        Load the parser from a language file.
+        
+        Returns:
+            A configured Parser instance
+            
+        Raises:
+            RuntimeError: If the language file cannot be loaded
+        """
+        # Path to the language definition file
+        language_dir = Path(__file__).parent / "languages"
+        language_file = language_dir / f"{self.language}.so"
+        
+        if not language_file.exists():
+            missing_msg = (
+                f"Language grammar file {language_file} not found. "
+                f"Please run:\n"
+                f"python {Path(__file__).parent}/build_languages.py\n"
+                f"to generate the required language files."
+            )
+            logger.error(missing_msg)
+            raise RuntimeError(missing_msg)
+        
+        # Load the language and create a parser
+        try:
+            # Handle different tree-sitter API versions
+            if LANGUAGE_REQUIRES_NAME:
+                tree_sitter_language = Language(str(language_file), self.language)
+            else:
+                tree_sitter_language = Language(str(language_file))
+                
+            parser = Parser()
+            parser.set_language(tree_sitter_language)
+            return parser
+        except Exception as e:
+            logger.error(f"Failed to load language grammar: {str(e)}")
+            raise RuntimeError(f"Failed to initialize language grammar: {str(e)}")
     
     def parse_file(self, filepath: str) -> Dict[str, List[Dict[str, Any]]]:
         """
@@ -94,6 +148,7 @@ class TreeSitterParser:
         Raises:
             FileNotFoundError: If the file doesn't exist
             ValueError: If the file type doesn't match the parser's language
+            RuntimeError: If parsing fails
         """
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"File not found: {filepath}")
@@ -113,6 +168,8 @@ class TreeSitterParser:
             
             # Parse the file
             tree = self.parser.parse(content)
+            if tree is None:
+                raise RuntimeError(f"Parser returned None for {filepath}")
             
             # Reset processed nodes for this file
             self._processed_nodes = set()
@@ -128,7 +185,10 @@ class TreeSitterParser:
             self._source_lines = content.split(b'\n')
             
             # Process the root node
-            self._process_node(tree.root_node, result, filepath)
+            if hasattr(tree, 'root_node'):
+                self._process_node(tree.root_node, result, filepath)
+            else:
+                logger.warning(f"Tree has no root_node attribute: {tree}")
             
             return result
         except Exception as e:
@@ -152,6 +212,9 @@ class TreeSitterParser:
         Returns:
             The ID of the processed node, or None if the node wasn't processed
         """
+        if not hasattr(node, 'type'):
+            return None
+        
         node_id = None
         
         # Choose the appropriate processor based on language
@@ -164,14 +227,15 @@ class TreeSitterParser:
             node_id = self._process_generic_node(node, result, filepath, parent_id)
         
         # Process children recursively
-        for child in node.children:
-            child_id = self._process_node(child, result, filepath, node_id)
-            
-            # If both the current node and child were processed and IDs were generated,
-            # we might want to create an edge between them in some cases
-            if node_id and child_id:
-                # Add specific relationships based on node types if needed
-                pass
+        if hasattr(node, 'children'):
+            for child in node.children:
+                child_id = self._process_node(child, result, filepath, node_id)
+                
+                # If both the current node and child were processed and IDs were generated,
+                # we might want to create an edge between them in some cases
+                if node_id and child_id:
+                    # Add specific relationships based on node types if needed
+                    pass
         
         return node_id
     

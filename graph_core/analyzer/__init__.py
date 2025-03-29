@@ -3,14 +3,18 @@ Analyzer package for parsing and analyzing code files.
 """
 
 import os
-from typing import Optional
+import logging
+from typing import Optional, Union
 
+from graph_core.analyzer.python_parser import PythonParser
 from graph_core.analyzer.treesitter_parser import TreeSitterParser
 
-__all__ = ['TreeSitterParser', 'get_parser_for_file']
+__all__ = ['TreeSitterParser', 'PythonParser', 'get_parser_for_file']
+
+logger = logging.getLogger(__name__)
 
 
-def get_parser_for_file(file_path: str) -> Optional[TreeSitterParser]:
+def get_parser_for_file(file_path: str) -> Optional[Union[TreeSitterParser, PythonParser]]:
     """
     Get the appropriate parser for a given file based on its extension.
     
@@ -22,7 +26,7 @@ def get_parser_for_file(file_path: str) -> Optional[TreeSitterParser]:
         
     Examples:
         >>> parser = get_parser_for_file('example.py')
-        >>> isinstance(parser, TreeSitterParser)
+        >>> isinstance(parser, TreeSitterParser) or isinstance(parser, PythonParser)
         True
         >>> parser = get_parser_for_file('example.js')
         >>> isinstance(parser, TreeSitterParser)
@@ -43,10 +47,17 @@ def get_parser_for_file(file_path: str) -> Optional[TreeSitterParser]:
     
     if ext in extensions_to_language:
         try:
+            # Try to use TreeSitterParser first
             return TreeSitterParser(extensions_to_language[ext])
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Failed to create parser for {file_path}: {str(e)}")
+            logger.warning(f"Failed to create TreeSitterParser for {file_path}: {str(e)}")
+            
+            # Fall back to PythonParser for Python files
+            if ext == '.py':
+                logger.info(f"Falling back to PythonParser for {file_path}")
+                return PythonParser()
+            
+            logger.error(f"No fallback parser available for {ext} files")
             return None
     
     # Return None for unsupported file types

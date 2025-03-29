@@ -20,11 +20,9 @@ import time
 from typing import Callable, Optional
 
 import uvicorn
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileSystemEvent
-
 from graph_core import DependencyGraphManager, create_app
 from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.watchers.file_watcher import start_file_watcher
 
 # Set up logging
 logging.basicConfig(
@@ -35,49 +33,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class FileWatcherHandler(FileSystemEventHandler):
+def start_watcher(callback: Callable[[str, str], None], watch_dir: str) -> threading.Thread:
     """
-    Handler for file system events.
-    
-    This class processes file system events and passes them to the
-    dependency graph manager.
-    """
-    
-    def __init__(self, callback: Callable[[str, str], None]):
-        """
-        Initialize the file watcher handler.
-        
-        Args:
-            callback: Function to call with event type and file path
-        """
-        self.callback = callback
-    
-    def on_created(self, event: FileSystemEvent) -> None:
-        """Handle file creation events."""
-        if not event.is_directory:
-            self.callback('created', event.src_path)
-    
-    def on_modified(self, event: FileSystemEvent) -> None:
-        """Handle file modification events."""
-        if not event.is_directory:
-            self.callback('modified', event.src_path)
-    
-    def on_deleted(self, event: FileSystemEvent) -> None:
-        """Handle file deletion events."""
-        if not event.is_directory:
-            self.callback('deleted', event.src_path)
-
-
-def start_watcher(callback: Callable[[str, str], None], watch_dir: str) -> Observer:
-    """
-    Start the file watcher.
+    Start the file watcher in a background thread.
     
     Args:
         callback: Function to call with event type and file path
         watch_dir: Directory to watch for changes
         
     Returns:
-        The started observer
+        The started watcher thread
         
     Raises:
         FileNotFoundError: If the watch_dir doesn't exist
@@ -85,18 +50,16 @@ def start_watcher(callback: Callable[[str, str], None], watch_dir: str) -> Obser
     if not os.path.exists(watch_dir):
         raise FileNotFoundError(f"Watch directory not found: {watch_dir}")
     
-    # Create an observer and event handler
-    observer = Observer()
-    handler = FileWatcherHandler(callback)
-    
-    # Schedule the observer to watch the directory
-    observer.schedule(handler, watch_dir, recursive=True)
-    
-    # Start the observer
-    observer.start()
+    # Create and start the watcher thread
+    watcher_thread = threading.Thread(
+        target=start_file_watcher,
+        args=(callback, watch_dir),
+        daemon=True  # Make thread exit when main thread exits
+    )
+    watcher_thread.start()
     logger.info(f"Started file watcher for {watch_dir}")
     
-    return observer
+    return watcher_thread
 
 
 def main() -> None:
@@ -125,7 +88,7 @@ def main() -> None:
         logger.info(f"Processed {num_files} existing files")
         
         # Start the file watcher in a background thread
-        observer = start_watcher(manager.on_file_event, args.watch_dir)
+        watcher_thread = start_watcher(manager.on_file_event, args.watch_dir)
         
         # Create the FastAPI app
         app = create_app(manager)
@@ -144,11 +107,6 @@ def main() -> None:
     except Exception as e:
         logger.error(f"Error: {str(e)}")
     finally:
-        # Stop the file watcher if it was started
-        if 'observer' in locals():
-            observer.stop()
-            observer.join()
-        
         logger.info("Shutdown complete")
 
 
