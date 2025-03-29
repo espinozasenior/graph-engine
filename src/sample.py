@@ -6,6 +6,10 @@ import os
 import sys
 from datetime import datetime, timedelta
 
+# Import functions from other modules
+from sample_module import hello, Person as ModulePerson
+from nested_example import outer_function, Person as NestedPerson, create_counter
+
 class BaseClass:
     """A base class to demonstrate inheritance."""
     
@@ -61,6 +65,29 @@ class Calculator:
         return self.result
 
 
+def use_imported_functions():
+    """Demo function to use imported functions."""
+    # Use functions from sample_module
+    message = hello()
+    print(f"From sample_module: {message}")
+    
+    module_person = ModulePerson("Bob")
+    print(module_person.greet())
+    
+    # Use functions from nested_example
+    result = outer_function("test value")
+    print(f"From nested_example: {result}")
+    
+    nested_person = NestedPerson("Charlie", 25)
+    nested_person.greet()
+    
+    counter = create_counter()
+    print(f"Counter: {counter()}")
+    print(f"Counter: {counter()}")
+    
+    return "Imported functions used successfully"
+
+
 def main():
     """Main function."""
     # Create a person
@@ -84,6 +111,9 @@ def main():
     calc = Calculator()
     print(f"2 + 3 = {calc.add(2, 3)}")
     print(f"5 - 2 = {calc.subtract(5, 2)}")
+    
+    # Use the imported functions
+    use_imported_functions()
     
     return 0
 

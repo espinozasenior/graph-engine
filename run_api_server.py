@@ -14,6 +14,11 @@ import threading
 import time
 import uvicorn
 
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+
 from graph_core.storage.in_memory_graph import InMemoryGraphStorage
 from graph_core.manager import DependencyGraphManager
 from graph_core.watchers.file_watcher import start_file_watcher
@@ -48,6 +53,10 @@ def parse_args():
         '--verbose', '-v', action='store_true',
         help='Enable verbose logging'
     )
+    parser.add_argument(
+        '--disable-cors', action='store_true',
+        help='Disable CORS middleware for development'
+    )
     return parser.parse_args()
 
 
@@ -71,6 +80,49 @@ def start_watcher(manager, watch_dir):
         )
     except Exception as e:
         logger.exception(f"Error in file watcher: {str(e)}")
+
+
+def create_api_app(manager, disable_cors=False):
+    """
+    Create and configure the FastAPI application.
+    
+    Args:
+        manager: The dependency graph manager
+        disable_cors: Whether to disable CORS middleware
+        
+    Returns:
+        The configured FastAPI application
+    """
+    # Get the base app from the API module
+    app = create_app(manager)
+    
+    # Add CORS middleware if not disabled
+    if not disable_cors:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],  # For development - restrict in production
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        logger.info("CORS middleware enabled for all origins")
+    
+    # Mount the frontend static files
+    frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
+    if os.path.exists(frontend_dir):
+        app.mount("/frontend", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+        logger.info(f"Mounted frontend static files from {frontend_dir}")
+        
+        # Add a redirect from root to frontend
+        @app.get("/")
+        async def redirect_to_frontend():
+            return RedirectResponse(url="/frontend/")
+        
+        logger.info("Added root redirect to frontend")
+    else:
+        logger.warning(f"Frontend directory not found at {frontend_dir}")
+    
+    return app
 
 
 def main():
@@ -103,12 +155,13 @@ def main():
         )
         watcher_thread.start()
         
-        # Create the FastAPI app
+        # Create the FastAPI app with frontend support
         logger.info("Creating FastAPI application...")
-        app = create_app(manager)
+        app = create_api_app(manager, disable_cors=args.disable_cors)
         
         # Run the API server
         logger.info(f"Starting API server at http://{args.host}:{args.port}")
+        logger.info(f"Frontend available at http://{args.host}:{args.port}/frontend/")
         uvicorn.run(app, host=args.host, port=args.port)
         
     except KeyboardInterrupt:

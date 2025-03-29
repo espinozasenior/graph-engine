@@ -5,6 +5,9 @@ This module provides various constructs to demonstrate function call tracking,
 including nested functions, class methods, and closures.
 """
 
+# Import from sample_module
+from sample_module import greeting, async_function
+
 def outer_function(value):
     """
     A function containing a nested inner function.
@@ -21,7 +24,9 @@ def outer_function(value):
         Args:
             inner_value: Value to process
         """
-        result = f"Processed: {inner_value}"
+        # Call a function from sample_module
+        welcome = greeting()
+        result = f"Processed: {inner_value} ({welcome})"
         print(result)
         return result
     
@@ -57,11 +62,13 @@ class Person:
             Args:
                 name: The name to include in the greeting
             """
-            return f"Hello, {name}!"
+            # Use the greeting from sample_module
+            base_greeting = greeting()
+            return f"{base_greeting} And hello to you, {name}!"
         
-        greeting = generate_greeting(self.name)
-        print(greeting)
-        return greeting
+        greeting_message = generate_greeting(self.name)
+        print(greeting_message)
+        return greeting_message
     
     def celebrate_birthday(self):
         """
@@ -93,4 +100,16 @@ def create_counter():
         count += 1
         return count
     
-    return increment 
+    return increment
+
+
+async def run_async_demo():
+    """
+    Demonstrates calling the async function from sample_module.
+    
+    Returns:
+        The result of the async function
+    """
+    result = await async_function()
+    print(f"Async result: {result}")
+    return result 
