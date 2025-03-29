@@ -20,7 +20,54 @@
             <div class="stats" id="stats"></div>
         </div>
         
-        <div id="cy" class="graph-container"></div>
+        <div class="panel-container">
+            <div id="cy" class="graph-container"></div>
+            
+            <div class="control-panel">
+                <h3>Filters</h3>
+                <div class="filter-section">
+                    <h4>Node Types</h4>
+                    <div class="checkbox-group" id="node-type-filters">
+                        <label><input type="checkbox" data-type="module" checked> Modules</label>
+                        <label><input type="checkbox" data-type="function" checked> Functions</label>
+                        <label><input type="checkbox" data-type="class" checked> Classes</label>
+                        <label><input type="checkbox" data-type="variable" checked> Variables</label>
+                    </div>
+                </div>
+                
+                <div class="filter-section">
+                    <h4>Edge Types</h4>
+                    <div class="checkbox-group" id="edge-type-filters">
+                        <label><input type="checkbox" data-type="calls" checked> Function Calls</label>
+                        <label><input type="checkbox" data-type="imports" checked> Imports</label>
+                        <label><input type="checkbox" data-type="defines" checked> Defines</label>
+                        <label><input type="checkbox" data-type="uses" checked> Uses</label>
+                    </div>
+                </div>
+                
+                <div class="filter-section">
+                    <h4>Dynamic Analysis</h4>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="toggle-dynamic-edges" checked> Show Dynamic Edges</label>
+                        <label><input type="checkbox" id="highlight-call-counts" checked> Highlight Call Counts</label>
+                    </div>
+                </div>
+                
+                <div class="filter-section">
+                    <h4>Layout</h4>
+                    <button id="btn-relayout" class="control-button">Re-layout Graph</button>
+                    <button id="btn-fit" class="control-button">Fit to View</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="node-details" class="node-details-panel">
+            <div class="panel-header">
+                <h3>Node Details</h3>
+                <button id="close-details" class="close-button">×</button>
+            </div>
+            <div id="details-content"></div>
+        </div>
         
         <div class="tooltip" id="tooltip"></div>
     </div>

@@ -17,6 +17,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const statsElement = document.getElementById('stats');
     const tooltipElement = document.getElementById('tooltip');
     const cyElement = document.getElementById('cy');
+    const nodeDetailsPanel = document.getElementById('node-details');
+    const detailsContent = document.getElementById('details-content');
+    const closeDetailsButton = document.getElementById('close-details');
+    
+    // Filter elements
+    const nodeTypeFilters = document.getElementById('node-type-filters');
+    const edgeTypeFilters = document.getElementById('edge-type-filters');
+    const toggleDynamicEdges = document.getElementById('toggle-dynamic-edges');
+    const highlightCallCounts = document.getElementById('highlight-call-counts');
+    const btnRelayout = document.getElementById('btn-relayout');
+    const btnFit = document.getElementById('btn-fit');
     
     // Node colors by type
     const nodeColors = {
@@ -96,6 +107,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     'width': 4,
                     'line-color': '#666',
                     'target-arrow-color': '#666'
+                }
+            },
+            {
+                selector: '.highlighted',
+                style: {
+                    'border-width': 3,
+                    'border-color': '#FF5722',
+                    'border-opacity': 0.8,
+                    'background-color': 'data(color)',
+                    'text-outline-color': '#FF5722',
+                    'text-outline-opacity': 0.8,
+                    'z-index': 20
+                }
+            },
+            {
+                selector: '.faded',
+                style: {
+                    'opacity': 0.25,
+                    'text-opacity': 0.5,
+                    'z-index': 1
+                }
+            },
+            {
+                selector: 'edge.highlighted',
+                style: {
+                    'width': 'data(width)',
+                    'line-color': '#FF5722',
+                    'target-arrow-color': '#FF5722',
+                    'opacity': 1,
+                    'z-index': 20
                 }
             }
         ],
@@ -284,6 +325,76 @@ document.addEventListener('DOMContentLoaded', function() {
         tooltipElement.style.display = 'none';
     }
     
+    // Show detailed node information in the side panel
+    function showNodeDetails(node) {
+        const originalData = node.data('original');
+        let html = '';
+        
+        // Basic information
+        html += createDetailItem('ID', originalData.id);
+        html += createDetailItem('Type', originalData.type || 'Unknown');
+        html += createDetailItem('Name', originalData.name || originalData.id);
+        
+        // If it's a file, show the filepath
+        if (originalData.filepath) {
+            html += createDetailItem('File Path', originalData.filepath);
+        }
+        
+        // Code location if available
+        if (originalData.start_line && originalData.end_line) {
+            html += createDetailItem('Line Range', `${originalData.start_line} - ${originalData.end_line}`);
+        }
+        
+        // Dynamic information
+        if (originalData.dynamic_call_count) {
+            html += createDetailItem('Call Count', originalData.dynamic_call_count);
+        }
+        
+        // Associated files if available
+        if (originalData.files && originalData.files.length > 0) {
+            html += createDetailItem('Associated Files', originalData.files.join('<br>'));
+        }
+        
+        // Additional properties
+        const additionalProps = getAdditionalProperties(originalData);
+        if (additionalProps.length > 0) {
+            html += '<div class="detail-item"><div class="label">Additional Properties</div>';
+            html += '<div class="value"><pre>' + JSON.stringify(additionalProps, null, 2) + '</pre></div></div>';
+        }
+        
+        detailsContent.innerHTML = html;
+        nodeDetailsPanel.classList.add('visible');
+    }
+    
+    // Helper function to create a detail item
+    function createDetailItem(label, value) {
+        return `
+            <div class="detail-item">
+                <div class="label">${label}</div>
+                <div class="value">${value}</div>
+            </div>
+        `;
+    }
+    
+    // Get additional properties from the node data
+    function getAdditionalProperties(data) {
+        const basicProps = ['id', 'type', 'name', 'filepath', 'start_line', 'end_line', 'dynamic_call_count', 'files'];
+        const additionalProps = {};
+        
+        Object.keys(data).forEach(key => {
+            if (!basicProps.includes(key) && key !== 'color' && key !== 'original') {
+                additionalProps[key] = data[key];
+            }
+        });
+        
+        return additionalProps;
+    }
+    
+    // Hide the node details panel
+    function hideNodeDetails() {
+        nodeDetailsPanel.classList.remove('visible');
+    }
+    
     // Generate edges from nodes based on imports
     function generateImportEdges(nodes) {
         const edges = [];
@@ -364,6 +475,74 @@ document.addEventListener('DOMContentLoaded', function() {
         return edges;
     }
     
+    // Apply filters to show/hide nodes and edges
+    function applyFilters() {
+        // Get the checked node types
+        const checkedNodeTypes = [];
+        const nodeCheckboxes = nodeTypeFilters.querySelectorAll('input[type="checkbox"]');
+        nodeCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                checkedNodeTypes.push(checkbox.getAttribute('data-type'));
+            }
+        });
+        
+        // Get the checked edge types
+        const checkedEdgeTypes = [];
+        const edgeCheckboxes = edgeTypeFilters.querySelectorAll('input[type="checkbox"]');
+        edgeCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                checkedEdgeTypes.push(checkbox.getAttribute('data-type'));
+            }
+        });
+        
+        // Check if dynamic edges should be shown
+        const showDynamicEdges = toggleDynamicEdges.checked;
+        
+        // Filter the nodes
+        cy.nodes().forEach(node => {
+            const nodeType = node.data('type');
+            const isVisible = checkedNodeTypes.includes(nodeType);
+            node.style('display', isVisible ? 'element' : 'none');
+        });
+        
+        // Filter the edges
+        cy.edges().forEach(edge => {
+            const edgeType = edge.data('type');
+            const isDynamic = edge.data('dynamic');
+            
+            // Check if the edge type is checked and if it meets the dynamic filter criteria
+            const isVisible = checkedEdgeTypes.includes(edgeType) && 
+                             (showDynamicEdges || !isDynamic);
+            
+            edge.style('display', isVisible ? 'element' : 'none');
+        });
+        
+        // Apply call count highlighting if enabled
+        const highlightCalls = highlightCallCounts.checked;
+        if (highlightCalls) {
+            cy.nodes().forEach(node => {
+                const callCount = node.data('callCount') || 0;
+                if (callCount > 0) {
+                    node.addClass('highlighted');
+                } else {
+                    node.removeClass('highlighted');
+                }
+            });
+            
+            cy.edges().forEach(edge => {
+                const callCount = edge.data('callCount') || 0;
+                if (callCount > 0) {
+                    edge.addClass('highlighted');
+                } else {
+                    edge.removeClass('highlighted');
+                }
+            });
+        } else {
+            cy.nodes().removeClass('highlighted');
+            cy.edges().removeClass('highlighted');
+        }
+    }
+    
     // Event listeners for tooltips
     cy.on('mouseover', 'node, edge', function(event) {
         showTooltip(event, event.target);
@@ -371,6 +550,42 @@ document.addEventListener('DOMContentLoaded', function() {
     
     cy.on('mouseout', 'node, edge', function() {
         hideTooltip();
+    });
+    
+    // Event listener for node click
+    cy.on('click', 'node', function(event) {
+        const node = event.target;
+        showNodeDetails(node);
+        
+        // Optionally highlight connected edges and nodes
+        cy.elements().addClass('faded');
+        node.removeClass('faded');
+        node.neighborhood().removeClass('faded');
+    });
+    
+    // Event listener for background click to remove highlighting
+    cy.on('click', function(event) {
+        if (event.target === cy) {
+            cy.elements().removeClass('faded');
+        }
+    });
+    
+    // Close details panel
+    closeDetailsButton.addEventListener('click', hideNodeDetails);
+    
+    // Add event listeners for filters
+    nodeTypeFilters.addEventListener('change', applyFilters);
+    edgeTypeFilters.addEventListener('change', applyFilters);
+    toggleDynamicEdges.addEventListener('change', applyFilters);
+    highlightCallCounts.addEventListener('change', applyFilters);
+    
+    // Add event listeners for buttons
+    btnRelayout.addEventListener('click', function() {
+        cy.layout({ name: 'cose' }).run();
+    });
+    
+    btnFit.addEventListener('click', function() {
+        cy.fit();
     });
     
     // Fetch graph data from the API
@@ -406,6 +621,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Hide loading message
             loadingElement.style.display = 'none';
+            
+            // Apply initial filters
+            applyFilters();
             
             console.log('Graph loaded successfully!');
         } catch (error) {

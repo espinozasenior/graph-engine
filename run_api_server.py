@@ -65,10 +65,13 @@ def start_watcher(manager, watch_dir):
     logger.info(f"Starting file watcher on directory: {watch_dir}")
     
     try:
+        # File extensions to process
+        supported_extensions = ('.py', '.js', '.jsx', '.ts', '.tsx')
+        
         # Process existing files first
         for root, _, files in os.walk(watch_dir):
             for file in files:
-                if file.endswith('.py'):
+                if file.endswith(supported_extensions):
                     filepath = os.path.join(root, file)
                     logger.debug(f"Processing existing file: {filepath}")
                     manager.on_file_event('created', filepath)

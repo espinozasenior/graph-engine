@@ -238,17 +238,129 @@ class TreeSitterParser:
             else:
                 logger.warning(f"Tree has no root_node attribute: {tree}")
             
-            # If we're using a minimal parser, add at least a module node
+            # If we're using a minimal parser, add nodes based on simple regex patterns
             if isinstance(self.parser, MinimalParser) and not result['nodes']:
-                module_id = f"module:{os.path.basename(filepath)}"
+                source_text = content.decode('utf-8', errors='replace')
+                basename = os.path.basename(filepath)
+                
+                # Add module node
+                module_id = f"module:{basename}"
                 result['nodes'].append({
                     'id': module_id,
                     'type': 'module',
-                    'name': os.path.basename(filepath),
+                    'name': basename,
                     'filepath': filepath,
                     'start_line': 1,
-                    'end_line': len(self._source_lines)
+                    'end_line': len(self._source_lines),
+                    'files': [filepath]
                 })
+                
+                # Simple regex-based extraction of functions, classes, variables
+                import re
+                
+                # For Python
+                if file_ext == '.py':
+                    # Find functions
+                    for match in re.finditer(r'def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(', source_text):
+                        func_name = match.group(1)
+                        line_no = source_text[:match.start()].count('\n') + 1
+                        func_id = f"function:{func_name}"
+                        
+                        # Add function node
+                        result['nodes'].append({
+                            'id': func_id,
+                            'type': 'function',
+                            'name': func_name,
+                            'filepath': filepath,
+                            'start_line': line_no,
+                            'end_line': line_no + 1,  # Estimate
+                            'files': [filepath]
+                        })
+                        
+                        # Add edge from module to function
+                        result['edges'].append({
+                            'id': f"contains:{self._generate_id()}",
+                            'source': module_id,
+                            'target': func_id,
+                            'type': 'contains'
+                        })
+                    
+                    # Find classes
+                    for match in re.finditer(r'class\s+([a-zA-Z_][a-zA-Z0-9_]*)', source_text):
+                        class_name = match.group(1)
+                        line_no = source_text[:match.start()].count('\n') + 1
+                        class_id = f"class:{class_name}"
+                        
+                        # Add class node
+                        result['nodes'].append({
+                            'id': class_id,
+                            'type': 'class',
+                            'name': class_name,
+                            'filepath': filepath,
+                            'start_line': line_no,
+                            'end_line': line_no + 1,  # Estimate
+                            'files': [filepath]
+                        })
+                        
+                        # Add edge from module to class
+                        result['edges'].append({
+                            'id': f"contains:{self._generate_id()}",
+                            'source': module_id,
+                            'target': class_id,
+                            'type': 'contains'
+                        })
+                
+                # For JavaScript/TypeScript
+                elif file_ext in ['.js', '.jsx', '.ts', '.tsx']:
+                    # Find functions
+                    for match in re.finditer(r'function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(', source_text):
+                        func_name = match.group(1)
+                        line_no = source_text[:match.start()].count('\n') + 1
+                        func_id = f"function:{func_name}"
+                        
+                        # Add function node
+                        result['nodes'].append({
+                            'id': func_id,
+                            'type': 'function',
+                            'name': func_name,
+                            'filepath': filepath,
+                            'start_line': line_no,
+                            'end_line': line_no + 1,  # Estimate
+                            'files': [filepath]
+                        })
+                        
+                        # Add edge from module to function
+                        result['edges'].append({
+                            'id': f"contains:{self._generate_id()}",
+                            'source': module_id,
+                            'target': func_id,
+                            'type': 'contains'
+                        })
+                    
+                    # Find classes
+                    for match in re.finditer(r'class\s+([a-zA-Z_$][a-zA-Z0-9_$]*)', source_text):
+                        class_name = match.group(1)
+                        line_no = source_text[:match.start()].count('\n') + 1
+                        class_id = f"class:{class_name}"
+                        
+                        # Add class node
+                        result['nodes'].append({
+                            'id': class_id,
+                            'type': 'class',
+                            'name': class_name,
+                            'filepath': filepath,
+                            'start_line': line_no,
+                            'end_line': line_no + 1,  # Estimate
+                            'files': [filepath]
+                        })
+                        
+                        # Add edge from module to class
+                        result['edges'].append({
+                            'id': f"contains:{self._generate_id()}",
+                            'source': module_id,
+                            'target': class_id,
+                            'type': 'contains'
+                        })
             
             return result
         except Exception as e:
@@ -261,7 +373,8 @@ class TreeSitterParser:
                     'name': os.path.basename(filepath),
                     'filepath': filepath,
                     'start_line': 1,
-                    'end_line': 1
+                    'end_line': 1,
+                    'files': [filepath]
                 }],
                 'edges': []
             }

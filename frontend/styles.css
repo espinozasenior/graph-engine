@@ -45,12 +45,148 @@ header h1 {
     color: #333;
 }
 
+.panel-container {
+    display: flex;
+    flex-grow: 1;
+    gap: 10px;
+    margin-top: 10px;
+}
+
 .graph-container {
     flex-grow: 1;
     border: 1px solid #ddd;
-    border-radius: 0 0 5px 5px;
+    border-radius: 5px;
     background-color: white;
     position: relative;
+}
+
+.control-panel {
+    width: 250px;
+    padding: 15px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+}
+
+.control-panel h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 16px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+    color: #333;
+}
+
+.filter-section {
+    margin-bottom: 20px;
+}
+
+.filter-section h4 {
+    margin: 5px 0;
+    font-size: 14px;
+    color: #555;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-left: 8px;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.control-button {
+    background-color: #4285F4;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 5px;
+    width: 100%;
+}
+
+.control-button:hover {
+    background-color: #3367D6;
+}
+
+.node-details-panel {
+    position: fixed;
+    right: -350px;
+    top: 20%;
+    width: 320px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transition: right 0.3s ease;
+    z-index: 1000;
+    max-height: 60%;
+    overflow-y: auto;
+}
+
+.node-details-panel.visible {
+    right: 10px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: #4285F4;
+    color: white;
+    border-radius: 5px 5px 0 0;
+}
+
+.panel-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.close-button {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+#details-content {
+    padding: 15px;
+}
+
+.detail-item {
+    margin-bottom: 10px;
+}
+
+.detail-item .label {
+    font-weight: bold;
+    margin-bottom: 3px;
+    color: #555;
+    font-size: 13px;
+}
+
+.detail-item .value {
+    font-family: monospace;
+    background-color: #f5f5f5;
+    padding: 5px;
+    border-radius: 3px;
+    word-break: break-all;
 }
 
 .tooltip {
@@ -65,4 +201,55 @@ header h1 {
     pointer-events: none;
     max-width: 300px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Media query for smaller screens */
+@media (max-width: 768px) {
+    .panel-container {
+        flex-direction: column;
+    }
+    
+    .control-panel {
+        width: auto;
+        margin-top: 10px;
+    }
+}
+
+/* Style for the type filter checkboxes */
+.type-filter-checkbox {
+    color: #333;
+}
+
+/* Colors for node types */
+.type-module {
+    color: #34A853; /* Green */
+}
+
+.type-function {
+    color: #4285F4; /* Blue */
+}
+
+.type-class {
+    color: #FBBC05; /* Yellow */
+}
+
+.type-variable {
+    color: #EA4335; /* Red */
+}
+
+/* Colors for edge types */
+.type-calls {
+    color: #4285F4; /* Blue */
+}
+
+.type-imports {
+    color: #34A853; /* Green */
+}
+
+.type-defines {
+    color: #FBBC05; /* Yellow */
+}
+
+.type-uses {
+    color: #EA4335; /* Red */
 } 
