@@ -46,6 +46,9 @@ class DependencyGraphManager:
         self.instrumentation_thread = None
         self.instrumentation_watch_dir = None
         self.instrumentation_poll_interval = 0.5  # Default polling interval in seconds
+        self.exclude_patterns = None
+        self.include_patterns = None
+        self.cache_dir = None
     
     def register_dynamic_handler(self, handler_func):
         """
@@ -138,7 +141,14 @@ class DependencyGraphManager:
             self.storage.graph.add_node(function_id, **attrs)
             logger.debug(f"Updated call count for {function_id}: {node['dynamic_call_count']}")
     
-    def start_python_instrumentation(self, watch_dir: str = 'src', poll_interval: float = 0.5) -> None:
+    def start_python_instrumentation(
+        self, 
+        watch_dir: str = 'src', 
+        poll_interval: float = 0.5,
+        exclude_patterns: Optional[List[str]] = None,
+        include_patterns: Optional[List[str]] = None,
+        cache_dir: Optional[str] = None
+    ) -> None:
         """
         Start Python instrumentation using the import hook.
         
@@ -148,6 +158,9 @@ class DependencyGraphManager:
         Args:
             watch_dir: Directory to monitor for Python files (default: 'src')
             poll_interval: How frequently to check for new events in seconds (default: 0.5)
+            exclude_patterns: List of regex patterns for modules to exclude from instrumentation
+            include_patterns: List of regex patterns for modules to include in instrumentation
+            cache_dir: Directory to store cached transformations (default: ~/.instrumentation_cache)
         """
         if self.instrumentation_active:
             logger.warning("Python instrumentation is already active")
@@ -159,7 +172,18 @@ class DependencyGraphManager:
         
         # Initialize the import hook
         logger.info(f"Initializing Python instrumentation for directory: {self.instrumentation_watch_dir}")
-        initialize_hook(self.instrumentation_watch_dir)
+        
+        # Store these in case we need to restart the instrumentation
+        self.exclude_patterns = exclude_patterns
+        self.include_patterns = include_patterns
+        self.cache_dir = cache_dir
+        
+        initialize_hook(
+            self.instrumentation_watch_dir,
+            exclude_patterns=exclude_patterns,
+            include_patterns=include_patterns,
+            cache_dir=cache_dir
+        )
         
         # Start the event processing thread
         self.instrumentation_active = True
@@ -348,4 +372,15 @@ class DependencyGraphManager:
                         logger.error(f"Error processing file {filepath}: {str(e)}")
         
         logger.info(f"Processed {count} existing files in {directory}")
-        return count 
+        return count
+    
+    def clear_instrumentation_cache(self) -> None:
+        """
+        Clear the instrumentation cache.
+        
+        This removes all cached transformed code, which will force
+        re-instrumentation of modules on next import.
+        """
+        from graph_core.dynamic.import_hook import clear_transformation_cache
+        clear_transformation_cache(self.cache_dir)
+        logger.info("Instrumentation cache cleared") 

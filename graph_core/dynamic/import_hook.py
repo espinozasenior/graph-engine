@@ -17,7 +17,10 @@ import logging
 import queue
 import threading
 import time
-from typing import Dict, List, Optional, Set, Tuple, Any, Union
+import hashlib
+import pickle
+import re
+from typing import Dict, List, Optional, Set, Tuple, Any, Union, Pattern
 
 
 # Global queue for function call events
@@ -190,17 +193,157 @@ class InstrumentationTransformer(ast.NodeTransformer):
         return node
 
 
+class TransformationCache:
+    """Cache for transformed Python code to avoid redundant AST transformations."""
+    
+    def __init__(self, cache_dir: Optional[str] = None):
+        """Initialize the transformation cache.
+        
+        Args:
+            cache_dir: Directory to store cached transformations (default: .instrumentation_cache)
+        """
+        self.cache_dir = cache_dir or os.path.join(os.path.expanduser("~"), ".instrumentation_cache")
+        os.makedirs(self.cache_dir, exist_ok=True)
+        self.memory_cache = {}  # In-memory cache for faster lookups
+        
+    def get_cache_key(self, filename: str, source_code: str) -> str:
+        """Generate a unique cache key for a file and its contents.
+        
+        Args:
+            filename: Path to the source file
+            source_code: Source code content
+            
+        Returns:
+            A unique cache key
+        """
+        # Use filename and content hash to create a unique key
+        content_hash = hashlib.md5(source_code.encode('utf-8')).hexdigest()
+        # Use the module name as part of the key to avoid collisions
+        module_name = os.path.basename(filename).split('.')[0]
+        return f"{module_name}_{content_hash}"
+    
+    def get_cache_path(self, cache_key: str) -> str:
+        """Get the path for a cached transformation.
+        
+        Args:
+            cache_key: The cache key
+            
+        Returns:
+            Path to the cache file
+        """
+        return os.path.join(self.cache_dir, f"{cache_key}.pkl")
+    
+    def get(self, filename: str, source_code: str) -> Optional[str]:
+        """Get cached transformed code if available.
+        
+        Args:
+            filename: Path to the source file
+            source_code: Source code content
+            
+        Returns:
+            Cached transformed code or None if not available
+        """
+        cache_key = self.get_cache_key(filename, source_code)
+        
+        # Check memory cache first
+        if cache_key in self.memory_cache:
+            logger.debug(f"In-memory cache hit for {filename}")
+            return self.memory_cache[cache_key]
+        
+        # Check disk cache
+        cache_path = self.get_cache_path(cache_key)
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, 'rb') as f:
+                    cached_data = pickle.load(f)
+                    
+                # Update memory cache
+                self.memory_cache[cache_key] = cached_data
+                
+                logger.debug(f"Disk cache hit for {filename}")
+                return cached_data
+            except Exception as e:
+                logger.warning(f"Error loading cache for {filename}: {e}")
+        
+        return None
+    
+    def put(self, filename: str, source_code: str, transformed_code: str) -> None:
+        """Store transformed code in the cache.
+        
+        Args:
+            filename: Path to the source file
+            source_code: Original source code
+            transformed_code: Transformed source code
+        """
+        cache_key = self.get_cache_key(filename, source_code)
+        
+        # Update memory cache
+        self.memory_cache[cache_key] = transformed_code
+        
+        # Update disk cache
+        cache_path = self.get_cache_path(cache_key)
+        try:
+            with open(cache_path, 'wb') as f:
+                pickle.dump(transformed_code, f)
+            logger.debug(f"Cached transformation for {filename}")
+        except Exception as e:
+            logger.warning(f"Error caching transformation for {filename}: {e}")
+    
+    def invalidate(self, filename: str) -> None:
+        """Invalidate cache entries for a file.
+        
+        Args:
+            filename: Path to the source file
+        """
+        # Since we use content hash, we don't need to explicitly invalidate
+        # entries when the file changes. When the content changes, the hash
+        # changes, resulting in a different cache key.
+        pass
+    
+    def clear(self) -> None:
+        """Clear all cached transformations."""
+        self.memory_cache.clear()
+        
+        # Remove all files in the cache directory
+        for file in os.listdir(self.cache_dir):
+            file_path = os.path.join(self.cache_dir, file)
+            try:
+                if os.path.isfile(file_path) and file.endswith('.pkl'):
+                    os.unlink(file_path)
+            except Exception as e:
+                logger.warning(f"Error removing cache file {file_path}: {e}")
+
+
 class PythonInstrumenter:
     """Class to handle Python code instrumentation."""
     
-    def __init__(self, watch_dir: str):
+    def __init__(self, 
+                 watch_dir: str, 
+                 exclude_patterns: Optional[List[str]] = None,
+                 include_patterns: Optional[List[str]] = None,
+                 cache_dir: Optional[str] = None):
         """Initialize the instrumenter.
         
         Args:
             watch_dir: Directory to monitor for Python files
+            exclude_patterns: List of regex patterns for modules to exclude from instrumentation
+            include_patterns: List of regex patterns for modules to include in instrumentation
+            cache_dir: Directory to store cached transformations
         """
         self.watch_dir = os.path.abspath(watch_dir)
+        
+        # Compile regex patterns for module filtering
+        self.exclude_patterns = [re.compile(p) for p in exclude_patterns] if exclude_patterns else []
+        self.include_patterns = [re.compile(p) for p in include_patterns] if include_patterns else []
+        
+        # Initialize the transformation cache
+        self.cache = TransformationCache(cache_dir)
+        
         logger.info(f"Initialized instrumenter to watch {self.watch_dir}")
+        if self.exclude_patterns:
+            logger.info(f"Excluding modules matching: {exclude_patterns}")
+        if self.include_patterns:
+            logger.info(f"Including only modules matching: {include_patterns}")
     
     def should_instrument(self, filename: str) -> bool:
         """Determine if a file should be instrumented.
@@ -215,10 +358,32 @@ class PythonInstrumenter:
             return False
         
         abs_path = os.path.abspath(filename)
-        abs_watch_dir = os.path.abspath(self.watch_dir)
         
         # Check if file is in the watch directory
-        return abs_path.startswith(abs_watch_dir)
+        if not abs_path.startswith(self.watch_dir):
+            return False
+        
+        # Convert filepath to module name for pattern matching
+        rel_path = os.path.relpath(abs_path, self.watch_dir)
+        module_path = rel_path.replace(os.path.sep, '.')
+        if module_path.endswith('.py'):
+            module_path = module_path[:-3]  # Remove .py extension
+        
+        # Skip if the module matches any exclude pattern
+        for pattern in self.exclude_patterns:
+            if pattern.search(module_path) or pattern.search(abs_path):
+                logger.debug(f"Skipping {filename} (matches exclude pattern)")
+                return False
+        
+        # If include patterns exist, only instrument if the module matches one
+        if self.include_patterns:
+            for pattern in self.include_patterns:
+                if pattern.search(module_path) or pattern.search(abs_path):
+                    return True
+            logger.debug(f"Skipping {filename} (doesn't match any include pattern)")
+            return False
+        
+        return True
     
     def instrument_code(self, source_code: str, module_name: str, filename: str) -> str:
         """Instrument Python source code.
@@ -231,6 +396,18 @@ class PythonInstrumenter:
         Returns:
             The instrumented source code
         """
+        # Check if we should instrument this module
+        if not self.should_instrument(filename):
+            return source_code
+        
+        # Check if we have cached transformed code
+        cached_code = self.cache.get(filename, source_code)
+        if cached_code is not None:
+            # Track this file as being monitored
+            with _lock:
+                monitored_files.add(filename)
+            return cached_code
+        
         try:
             tree = ast.parse(source_code)
             transformer = InstrumentationTransformer(module_name, filename)
@@ -246,17 +423,19 @@ class PythonInstrumenter:
                 # Fix line numbers
                 ast.fix_missing_locations(transformed_tree)
                 
-                # Compile the transformed AST
-                instrumented_code = compile(transformed_tree, filename, 'exec')
-                
                 # Track this file as being monitored
                 with _lock:
                     monitored_files.add(filename)
                 
                 logger.info(f"Instrumented {module_name} in {filename}")
                 
-                # Convert back to source code for advanced use cases
-                return ast.unparse(transformed_tree)
+                # Convert back to source code
+                instrumented_code = ast.unparse(transformed_tree)
+                
+                # Cache the transformed code
+                self.cache.put(filename, source_code, instrumented_code)
+                
+                return instrumented_code
             else:
                 # No functions to instrument
                 logger.debug(f"No functions to instrument in {module_name}")
@@ -428,17 +607,30 @@ class InstrumentationLoader(importlib.abc.Loader):
         return None
 
 
-def initialize_hook(watch_dir: str = 'src') -> None:
+def initialize_hook(
+    watch_dir: str = 'src',
+    exclude_patterns: Optional[List[str]] = None,
+    include_patterns: Optional[List[str]] = None,
+    cache_dir: Optional[str] = None
+) -> None:
     """Initialize and install the import hook.
     
     Args:
         watch_dir: Directory to monitor for Python files (default: 'src')
+        exclude_patterns: List of regex patterns for modules to exclude from instrumentation
+        include_patterns: List of regex patterns for modules to include in instrumentation
+        cache_dir: Directory to store cached transformations
     """
     watch_dir = os.path.abspath(watch_dir)
     logger.info(f"Initializing import hook to watch {watch_dir}")
     
-    # Create the instrumenter
-    instrumenter = PythonInstrumenter(watch_dir)
+    # Create the instrumenter with filtering and caching
+    instrumenter = PythonInstrumenter(
+        watch_dir,
+        exclude_patterns=exclude_patterns,
+        include_patterns=include_patterns,
+        cache_dir=cache_dir
+    )
     
     # Create and install the finder
     finder = InstrumentationFinder(instrumenter)
@@ -484,4 +676,15 @@ def clear_call_queue() -> None:
         while True:
             function_call_queue.get(block=False)
     except queue.Empty:
-        pass 
+        pass
+
+
+def clear_transformation_cache(cache_dir: Optional[str] = None) -> None:
+    """Clear the transformation cache.
+    
+    Args:
+        cache_dir: Directory containing the cache
+    """
+    cache = TransformationCache(cache_dir)
+    cache.clear()
+    logger.info("Transformation cache cleared") 

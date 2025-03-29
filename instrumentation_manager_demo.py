@@ -2,12 +2,13 @@
 Demonstration of import hook integration with DependencyGraphManager.
 
 This script shows how the DependencyGraphManager can be used to track function calls
-through Python instrumentation.
+through Python instrumentation, with module filtering and caching.
 """
 
 import os
 import time
 import logging
+import tempfile
 
 from graph_core.storage.in_memory_graph import InMemoryGraphStorage
 from graph_core.manager import DependencyGraphManager
@@ -65,10 +66,28 @@ def main():
             files={"src/nested_example.py"}
         )
     
-    # Start Python instrumentation
+    # Create a cache directory
+    cache_dir = tempfile.mkdtemp(prefix="instrumentation_cache_")
+    logger.info(f"Using cache directory: {cache_dir}")
+    
+    # Start Python instrumentation with filtering and caching
     watch_dir = os.path.abspath('src')
     logger.info(f"Starting Python instrumentation for {watch_dir}...")
-    manager.start_python_instrumentation(watch_dir=watch_dir)
+    
+    # Exclude any test modules
+    exclude_patterns = ["test_"]
+    # Include only nested_example module
+    include_patterns = ["nested_example"]
+    
+    manager.start_python_instrumentation(
+        watch_dir=watch_dir,
+        poll_interval=0.5,
+        exclude_patterns=exclude_patterns,
+        include_patterns=include_patterns,
+        cache_dir=cache_dir
+    )
+    
+    logger.info(f"Module filtering: exclude={exclude_patterns}, include={include_patterns}")
     
     # Manually add some events to the queue to simulate function calls
     logger.info("Adding manual function call events to the queue...")
@@ -129,9 +148,24 @@ def main():
         call_count = data.get('dynamic_call_count', 0)
         logger.info(f"  Edge: {source} -> {target}, call count: {call_count}")
     
+    # Show that we have a cache
+    cache_files = os.listdir(cache_dir)
+    logger.info(f"Cache contains {len(cache_files)} files")
+    
+    # Clear the cache
+    logger.info("Clearing instrumentation cache...")
+    manager.clear_instrumentation_cache()
+    
+    # Verify cache is cleared
+    cache_files = os.listdir(cache_dir)
+    logger.info(f"Cache contains {len(cache_files)} files after clearing")
+    
     # Stop instrumentation
     logger.info("Stopping Python instrumentation...")
     manager.stop_python_instrumentation()
+    
+    # Clean up the cache directory
+    os.rmdir(cache_dir)
     
     logger.info("Demonstration complete")
 

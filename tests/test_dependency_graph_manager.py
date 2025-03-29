@@ -274,14 +274,29 @@ class TestDependencyGraphManager(unittest.TestCase):
         mock_thread = Mock()
         mock_thread_class.return_value = mock_thread
         
-        # Call the method
+        # Call the method with all parameters
         watch_dir = 'src/test_dir'
         poll_interval = 0.75
-        self.manager.start_python_instrumentation(watch_dir, poll_interval)
+        exclude_patterns = ['test_', 'excluded']
+        include_patterns = ['main', 'core']
+        cache_dir = '/tmp/test_cache'
         
-        # Verify initialize_hook was called with the correct directory
+        self.manager.start_python_instrumentation(
+            watch_dir=watch_dir,
+            poll_interval=poll_interval,
+            exclude_patterns=exclude_patterns,
+            include_patterns=include_patterns,
+            cache_dir=cache_dir
+        )
+        
+        # Verify initialize_hook was called with the correct parameters
         expected_dir = os.path.abspath(watch_dir)
-        mock_initialize_hook.assert_called_once_with(expected_dir)
+        mock_initialize_hook.assert_called_once_with(
+            expected_dir,
+            exclude_patterns=exclude_patterns,
+            include_patterns=include_patterns,
+            cache_dir=cache_dir
+        )
         
         # Verify the thread was created and started
         mock_thread_class.assert_called_once()
@@ -294,6 +309,9 @@ class TestDependencyGraphManager(unittest.TestCase):
         self.assertEqual(self.manager.instrumentation_thread, mock_thread)
         self.assertEqual(self.manager.instrumentation_watch_dir, expected_dir)
         self.assertEqual(self.manager.instrumentation_poll_interval, poll_interval)
+        self.assertEqual(self.manager.exclude_patterns, exclude_patterns)
+        self.assertEqual(self.manager.include_patterns, include_patterns)
+        self.assertEqual(self.manager.cache_dir, cache_dir)
     
     @patch('graph_core.manager.initialize_hook')
     @patch('threading.Thread')
@@ -406,6 +424,19 @@ class TestDependencyGraphManager(unittest.TestCase):
         manager.process_dynamic_event.assert_called_once_with(
             'call', 'function:test_module.outer_func', 'function:test_module.inner_func'
         )
+    
+    @patch('graph_core.dynamic.import_hook.clear_transformation_cache')
+    def test_clear_instrumentation_cache(self, mock_clear_cache):
+        """Test clearing the instrumentation cache."""
+        # Set a cache directory
+        cache_dir = '/tmp/test_cache'
+        self.manager.cache_dir = cache_dir
+        
+        # Call the method
+        self.manager.clear_instrumentation_cache()
+        
+        # Verify the cache was cleared with the correct path
+        mock_clear_cache.assert_called_once_with(cache_dir)
 
 
 if __name__ == '__main__':
