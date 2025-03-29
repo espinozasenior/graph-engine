@@ -222,12 +222,13 @@ class TestDependencyGraphManager(unittest.TestCase):
     @patch('os.path.exists')
     @patch('os.path.isdir')
     def test_process_existing_files_not_a_directory(self, mock_isdir, mock_exists):
-        """Test processing files when the path is not a directory."""
+        """Test processing files when the target is not a directory."""
+        # Set up mocks
         mock_exists.return_value = True
         mock_isdir.return_value = False
         
         with self.assertRaises(ValueError):
-            self.manager.process_existing_files('/file.txt')
+            self.manager.process_existing_files('/test/not_a_dir')
     
     @patch('graph_core.manager.get_parser_for_file')
     def test_integration_with_watcher(self, mock_get_parser):
@@ -437,6 +438,204 @@ class TestDependencyGraphManager(unittest.TestCase):
         
         # Verify the cache was cleared with the correct path
         mock_clear_cache.assert_called_once_with(cache_dir)
+    
+    @patch('time.time')
+    def test_detect_renames(self, mock_time):
+        """Test detection of renamed files."""
+        # Set up mock time
+        mock_time.return_value = 100.0
+        
+        # Add some deleted and created files to the buffers
+        self.manager.deleted_files.append((99.0, 'old_file.py'))
+        self.manager.created_files.append((99.5, 'new_file.py'))
+        
+        # Patch the detect_renames function to return a rename event
+        with patch('graph_core.manager.detect_renames') as mock_detect_renames:
+            mock_detect_renames.return_value = [
+                MagicMock(
+                    old_path='old_file.py',
+                    new_path='new_file.py'
+                )
+            ]
+            
+            # Call detect_renames
+            result = self.manager.detect_renames()
+            
+            # Verify the results
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0].old_path, 'old_file.py')
+            self.assertEqual(result[0].new_path, 'new_file.py')
+            
+            # Verify the deleted and created files were removed from the buffers
+            self.assertEqual(len(self.manager.deleted_files), 0)
+            self.assertEqual(len(self.manager.created_files), 0)
+            
+            # Verify the rename history was updated
+            self.assertEqual(self.manager.rename_history['new_file.py'], 'old_file.py')
+    
+    def test_update_node_filepath(self):
+        """Test updating the filepath property of nodes."""
+        # Set up test data
+        old_path = 'old_file.py'
+        new_path = 'new_file.py'
+        
+        # Mock the storage and its graph property
+        self.storage.file_nodes = {old_path: {'node1', 'node2'}}
+        self.storage.graph = Mock()
+        
+        # Mock get_node to return a node
+        self.storage.get_node.side_effect = lambda node_id: {
+            'node1': {'id': 'node1', 'filepath': old_path, 'name': 'Test Node 1'},
+            'node2': {'id': 'node2', 'filepath': old_path, 'name': 'Test Node 2'}
+        }.get(node_id)
+        
+        # Call update_node_filepath
+        result = self.manager.update_node_filepath(old_path, new_path)
+        
+        # Verify the result
+        self.assertTrue(result)
+        
+        # Verify node updates
+        expected_calls = [
+            call('node1', **{'filepath': new_path, 'name': 'Test Node 1', 'rename_history': [old_path]}),
+            call('node2', **{'filepath': new_path, 'name': 'Test Node 2', 'rename_history': [old_path]})
+        ]
+        self.storage.graph.add_node.assert_has_calls(expected_calls, any_order=True)
+        
+        # Verify file_nodes updates
+        self.assertIn(new_path, self.storage.file_nodes)
+        self.assertNotIn(old_path, self.storage.file_nodes)
+        self.assertEqual(self.storage.file_nodes[new_path], {'node1', 'node2'})
+        
+        # Verify rename history was updated
+        self.assertEqual(self.manager.rename_history[new_path], old_path)
+    
+    def test_update_node_filepath_nonexistent_file(self):
+        """Test updating the filepath property of nodes for a nonexistent file."""
+        # Set up test data
+        old_path = 'nonexistent.py'
+        new_path = 'new_file.py'
+        
+        # Mock the storage without the old file
+        self.storage.file_nodes = {}
+        self.storage.graph = Mock()
+        
+        # Call update_node_filepath
+        result = self.manager.update_node_filepath(old_path, new_path)
+        
+        # Verify the result
+        self.assertFalse(result)
+        
+        # Verify no nodes were updated
+        self.storage.graph.add_node.assert_not_called()
+        
+        # Verify rename history was not updated
+        self.assertNotIn(new_path, self.manager.rename_history)
+    
+    @patch('graph_core.manager.get_parser_for_file')
+    def test_on_file_event_with_rename_detection(self, mock_get_parser):
+        """Test handling file events with rename detection."""
+        # Set up mocks
+        mock_parser = Mock()
+        mock_parser.parse_file.return_value = {
+            'nodes': [{'id': 'function:test_func', 'type': 'function', 'name': 'test_func'}],
+            'edges': []
+        }
+        mock_get_parser.return_value = mock_parser
+        
+        # Create a function to simulate renames being detected
+        original_detect_renames = self.manager.detect_renames
+        
+        def mock_detect_renames():
+            if hasattr(self.manager, 'simulate_rename') and self.manager.simulate_rename:
+                return [MagicMock(old_path='old_file.py', new_path='new_file.py')]
+            return []
+        
+        self.manager.detect_renames = mock_detect_renames
+        
+        # Also mock update_node_filepath
+        self.manager.update_node_filepath = Mock(return_value=True)
+        
+        # Test file deletion with rename detection
+        self.manager.simulate_rename = True
+        self.manager.on_file_event('deleted', 'old_file.py')
+        
+        # Verify the file was not removed from storage
+        self.storage.remove_file.assert_not_called()
+        
+        # Test file creation with rename detection
+        self.manager.on_file_event('created', 'new_file.py')
+        
+        # Verify update_node_filepath was called but not add_or_update_file
+        self.manager.update_node_filepath.assert_called_with('old_file.py', 'new_file.py')
+        self.storage.add_or_update_file.assert_not_called()
+        
+        # Test file creation without a rename being detected
+        self.manager.simulate_rename = False
+        self.manager.on_file_event('created', 'another_file.py')
+        
+        # Verify the file was parsed and added to storage
+        mock_parser.parse_file.assert_called_with('another_file.py')
+        self.storage.add_or_update_file.assert_called_with(
+            'another_file.py', mock_parser.parse_file.return_value
+        )
+        
+        # Restore original method
+        self.manager.detect_renames = original_detect_renames
+    
+    def test_integration_rename_detection(self):
+        """Test the rename detection integration with the storage."""
+        # Create a real InMemoryGraphStorage instance for this test
+        storage = InMemoryGraphStorage()
+        manager = DependencyGraphManager(storage)
+        
+        # Add a file with some nodes to the storage
+        old_file = 'src/old_file.py'
+        new_file = 'src/new_file.py'
+        
+        # Create test nodes and edges
+        nodes = [
+            {'id': 'function:test_func', 'type': 'function', 'name': 'test_func', 'filepath': old_file},
+            {'id': 'class:TestClass', 'type': 'class', 'name': 'TestClass', 'filepath': old_file}
+        ]
+        edges = [
+            {'source': 'function:test_func', 'target': 'class:TestClass', 'type': 'uses'}
+        ]
+        
+        # Add the file to storage
+        storage.add_or_update_file(old_file, {'nodes': nodes, 'edges': edges})
+        
+        # Verify nodes and edges were added
+        self.assertEqual(len(storage.get_all_nodes()), 2)
+        self.assertEqual(len(storage.get_all_edges()), 1)
+        
+        # Directly call update_node_filepath to simulate a rename
+        updated = manager.update_node_filepath(old_file, new_file)
+        
+        # Verify the update was successful
+        self.assertTrue(updated)
+        
+        # Get updated nodes
+        updated_nodes = storage.get_all_nodes()
+        self.assertEqual(len(updated_nodes), 2)
+        
+        # Verify node filepaths were updated
+        for node in updated_nodes:
+            self.assertEqual(node['filepath'], new_file)
+            self.assertIn('rename_history', node)
+            self.assertIn(old_file, node['rename_history'])
+        
+        # Verify the file tracking was updated
+        self.assertIn(new_file, storage.file_nodes)
+        self.assertNotIn(old_file, storage.file_nodes)
+        
+        # Verify edges were preserved
+        edges = storage.get_all_edges()
+        self.assertEqual(len(edges), 1)
+        
+        # Verify the rename was recorded in the manager's history
+        self.assertIn(new_file, manager.rename_history)
+        self.assertEqual(manager.rename_history[new_file], old_file)
 
 
 if __name__ == '__main__':

@@ -9,11 +9,13 @@ import os
 import logging
 import threading
 import time
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Optional, Dict, Any, Callable, Set, Tuple
+from collections import deque
 
 from graph_core.analyzer import get_parser_for_file
 from graph_core.storage.in_memory_graph import InMemoryGraphStorage
 from graph_core.dynamic.import_hook import initialize_hook, get_function_calls, FunctionCallEvent
+from graph_core.watchers.rename_detection import detect_renames, RenameEvent
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -29,6 +31,9 @@ class DependencyGraphManager:
     
     # Supported file extensions
     SUPPORTED_EXTENSIONS = ['.py', '.js', '.ts', '.tsx']
+    
+    # How long (in seconds) to keep track of deleted files for rename detection
+    RENAME_DETECTION_WINDOW = 2.0
     
     def __init__(self, storage: InMemoryGraphStorage):
         """
@@ -49,6 +54,14 @@ class DependencyGraphManager:
         self.exclude_patterns = None
         self.include_patterns = None
         self.cache_dir = None
+        
+        # Buffers for tracking potential file renames
+        # Each entry is (timestamp, filepath)
+        self.deleted_files = deque(maxlen=100)
+        self.created_files = deque(maxlen=100)
+        
+        # Keep track of renamed files for history
+        self.rename_history = {}  # Maps new_path -> old_path
     
     def register_dynamic_handler(self, handler_func):
         """
@@ -140,6 +153,59 @@ class DependencyGraphManager:
             attrs = {k: v for k, v in node.items() if k != 'id'}
             self.storage.graph.add_node(function_id, **attrs)
             logger.debug(f"Updated call count for {function_id}: {node['dynamic_call_count']}")
+    
+    def detect_renames(self) -> List[RenameEvent]:
+        """
+        Detect if any recently deleted files have been renamed to match recently created files.
+        
+        This method checks for renames by comparing the similarity of files that were recently
+        deleted and created within the RENAME_DETECTION_WINDOW timeframe.
+        
+        Returns:
+            A list of RenameEvent objects representing detected renames
+        """
+        current_time = time.time()
+        
+        # Get recently deleted files that are still within the window
+        recent_deleted = [
+            filepath for timestamp, filepath in self.deleted_files
+            if current_time - timestamp <= self.RENAME_DETECTION_WINDOW
+        ]
+        
+        # Get recently created files that are still within the window
+        recent_created = [
+            filepath for timestamp, filepath in self.created_files
+            if current_time - timestamp <= self.RENAME_DETECTION_WINDOW
+        ]
+        
+        # If we have both deleted and created files, check for renames
+        if recent_deleted and recent_created:
+            logger.debug(f"Checking for renames among {len(recent_deleted)} deleted and {len(recent_created)} created files")
+            
+            # Use the rename detection module to detect renames
+            rename_events = detect_renames(recent_deleted, recent_created)
+            
+            if rename_events:
+                logger.info(f"Detected {len(rename_events)} file rename(s)")
+                
+                # Remove the files involved in renames from the buffers
+                for event in rename_events:
+                    # Update rename history
+                    self.rename_history[event.new_path] = event.old_path
+                    
+                    # Filter out the renamed files from our buffers
+                    self.deleted_files = deque(
+                        [(ts, path) for ts, path in self.deleted_files if path != event.old_path],
+                        maxlen=100
+                    )
+                    self.created_files = deque(
+                        [(ts, path) for ts, path in self.created_files if path != event.new_path],
+                        maxlen=100
+                    )
+            
+            return rename_events
+        
+        return []
     
     def start_python_instrumentation(
         self, 
@@ -289,6 +355,54 @@ class DependencyGraphManager:
         except Exception as e:
             logger.error(f"Error processing function call event {event}: {str(e)}", exc_info=True)
     
+    def update_node_filepath(self, old_path: str, new_path: str) -> bool:
+        """
+        Update the filepath property of all nodes associated with the old path.
+        
+        This is used when a file has been renamed, to preserve node continuity
+        rather than deleting and recreating nodes.
+        
+        Args:
+            old_path: The original filepath
+            new_path: The new filepath after rename
+            
+        Returns:
+            True if any nodes were updated, False otherwise
+        """
+        # Find all nodes associated with the old filepath
+        if old_path not in self.storage.file_nodes:
+            logger.warning(f"No nodes found for file {old_path}")
+            return False
+        
+        # Update the filepath for each node
+        updated = False
+        for node_id in self.storage.file_nodes.get(old_path, set()):
+            node = self.storage.get_node(node_id)
+            if node:
+                # Update filepath and add rename history
+                node['filepath'] = new_path
+                if 'rename_history' not in node:
+                    node['rename_history'] = []
+                node['rename_history'].append(old_path)
+                
+                # Update the node in storage
+                attrs = {k: v for k, v in node.items() if k != 'id'}
+                self.storage.graph.add_node(node_id, **attrs)
+                updated = True
+        
+        # Update file_nodes tracking
+        if old_path in self.storage.file_nodes:
+            nodes = self.storage.file_nodes[old_path]
+            self.storage.file_nodes[new_path] = nodes
+            del self.storage.file_nodes[old_path]
+        
+        # Record the rename in the history
+        if updated:
+            self.rename_history[new_path] = old_path
+            logger.info(f"Updated filepath for nodes from {old_path} to {new_path}")
+        
+        return updated
+    
     def on_file_event(self, event_type: str, filepath: str) -> None:
         """
         Handle a file event by updating the graph accordingly.
@@ -313,7 +427,37 @@ class DependencyGraphManager:
             return
         
         try:
-            if event_type in ('created', 'modified'):
+            if event_type == 'created':
+                # Add to created files buffer for rename detection
+                self.created_files.append((time.time(), filepath))
+                
+                # Check for renames
+                rename_events = self.detect_renames()
+                
+                # If this file was part of a rename, update the nodes instead of creating new ones
+                renamed = False
+                for event in rename_events:
+                    if event.new_path == filepath:
+                        # Update the filepath for all nodes from the old file
+                        renamed = self.update_node_filepath(event.old_path, filepath)
+                        break
+                
+                # If not a rename, process as a new file
+                if not renamed:
+                    # Get the appropriate parser
+                    parser = get_parser_for_file(filepath)
+                    if parser is None:
+                        logger.warning(f"No parser available for {filepath}")
+                        return
+                    
+                    # Parse the file
+                    parse_result = parser.parse_file(filepath)
+                    
+                    # Update the storage
+                    self.storage.add_or_update_file(filepath, parse_result)
+                    logger.info(f"Updated graph for {event_type} file: {filepath}")
+            
+            elif event_type == 'modified':
                 # Get the appropriate parser
                 parser = get_parser_for_file(filepath)
                 if parser is None:
@@ -328,9 +472,23 @@ class DependencyGraphManager:
                 logger.info(f"Updated graph for {event_type} file: {filepath}")
             
             elif event_type == 'deleted':
-                # Remove the file from storage
-                self.storage.remove_file(filepath)
-                logger.info(f"Removed file from graph: {filepath}")
+                # Add to deleted files buffer for rename detection
+                self.deleted_files.append((time.time(), filepath))
+                
+                # Check for renames
+                rename_events = self.detect_renames()
+                
+                # If this file was not part of a rename, remove it from storage
+                renamed = False
+                for event in rename_events:
+                    if event.old_path == filepath:
+                        renamed = True
+                        break
+                
+                if not renamed:
+                    # Remove the file from storage
+                    self.storage.remove_file(filepath)
+                    logger.info(f"Removed file from graph: {filepath}")
         
         except FileNotFoundError:
             logger.warning(f"File not found: {filepath}")
