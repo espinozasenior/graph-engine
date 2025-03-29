@@ -1,47 +1,105 @@
-# graph-engine
+# Graph Engine
 
-Graph-Engine is an open-source module for **automatically building and maintaining dependency graphs** of your codebase, with a particular focus on scalability, modularity, and test-driven development. This project is licensed under the **Hippocratic License**, aligning with ethical standards in software creation.
+A tool for analyzing code dependencies and visualizing them as a graph.
 
-## Vision and Roadmap
+## Components
 
-The long-term goal of Graph-Engine is to support a **multi-language** environment, collect both **static** (AST-based) and **dynamic** (runtime instrumentation) data, and store it in a **graph database** for large-scale analysis and integration into **autonomous/self-evolving** AI systems. Our development will follow these main phases:
+### Core Components
 
-1. **Phase 1 (MVP)**:  
-   - Single-language (Python) static analysis using an **in-memory graph**.  
-   - Real-time file watching for code changes.  
-   - A minimal REST API exposing graph data.  
-   - **Complete test coverage** for every function and file, ensuring expected inputs/outputs are verified.
+1. **Parser**: Parses source code files to extract nodes (functions, classes) and edges (dependencies).
+   - `DependencyExtractor`: Extracts nodes and edges from Python files.
+   - `TreeSitterParser`: Uses Tree-sitter to extract structural information from code files in various languages.
 
-2. **Phase 2**:  
-   - Multi-language support (e.g., JavaScript, Java).  
-   - Dynamic instrumentation to capture real runtime calls.  
-   - Graph database integration (JanusGraph).
+2. **Graph Storage**: Stores the dependency graph.
+   - `InMemoryGraphStorage`: Stores the graph in memory.
 
-3. **Phase 3**:  
-   - Visualization with Cytoscape.js front-end.  
-   - Incremental parsing improvements, rename detection, secrets masking.
+3. **Graph Manager**: Manages the dependency graph, handling updates and queries.
+   - `DependencyGraphManager`: Coordinates parsing and storage.
 
-4. **Phase 4**:  
-   - CI/CD integration, performance tuning, artifact generation.
+4. **API**: Provides HTTP access to the dependency graph.
+   - `GraphAPI`: FastAPI application that exposes graph data via HTTP endpoints.
 
-5. **Phase 5**:  
-   - AI agent plugin architecture for code refactoring, code generation, and extended community-driven enhancements.
+5. **File Watcher**: Watches for file changes and updates the graph automatically.
 
-**Note**: We aim to produce well-structured, modular Python code with a strong emphasis on **test-driven development** (TDD). Each function, class, or module will have corresponding tests, specifying the **expected inputs and outputs**. This approach ensures reliability and maintainability as the project grows.
+## Setup
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/graph-engine.git
+   cd graph-engine
+   ```
+
+2. Install the dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Build the Tree-sitter language libraries:
+   ```bash
+   python graph_core/analyzer/treesitter_parser/build_languages.py
+   ```
+
+## Usage
+
+### Running the API Server
+
+Start the API server with file watching:
+
+```bash
+python run_graph_manager.py --watch-dir src/ --host 127.0.0.1 --port 8000
+```
+
+### Accessing the API
+
+Once the server is running, you can access the following endpoints:
+
+- `GET /graph/nodes` - Retrieve all nodes in the dependency graph
+- `GET /graph/edges` - Retrieve all edges in the dependency graph
+
+### Using the TreeSitterParser
+
+The `TreeSitterParser` can be used to parse code files and extract structural information:
+
+```python
+from graph_core.analyzer.treesitter_parser import TreeSitterParser
+
+# Initialize parser for Python
+parser = TreeSitterParser('python')
+
+# Parse a file
+result = parser.parse_file('path/to/your/file.py')
+
+# Access nodes and edges
+nodes = result['nodes']
+edges = result['edges']
+
+# Print information about nodes
+for node in nodes:
+    print(f"Node: {node['name']} (Type: {node['type']})")
+
+# Print information about edges
+for edge in edges:
+    print(f"Edge: {edge['source']} -> {edge['target']} (Type: {edge['type']})")
+```
+
+### Supported Languages
+
+The `TreeSitterParser` supports the following languages:
+
+- Python (`.py`)
+- JavaScript (`.js`)
+- TypeScript (`.ts`, `.tsx`)
+
+## Testing
+
+Run the tests:
+
+```bash
+pytest
+```
 
 ## License
 
-This project is published under the [Hippocratic License](https://firstdonoharm.dev/). Please review the license terms to understand the ethical guidelines and usage limitations.
-
-## Contributing
-
-Contributions are welcomed! Please submit pull requests or open issues with questions and feedback. For larger changes or new language parsers, please open an issue first to discuss the approach.
-
-## Getting Started
-
-1. **Clone or Fork** this repository.
-2. **Install dependencies** from `requirements.txt`.
-3. **Run Tests**: `pytest --maxfail=1 --disable-warnings -q`
-4. **Start the Watcher/API** (coming soon in Phase 1).
-
-Stay tuned for more updates!
+[MIT License](LICENSE)

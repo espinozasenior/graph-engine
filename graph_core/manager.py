@@ -7,7 +7,7 @@ the dependency graph updated accordingly.
 
 import os
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from graph_core.analyzer import get_parser_for_file
 from graph_core.storage.in_memory_graph import InMemoryGraphStorage
@@ -23,6 +23,9 @@ class DependencyGraphManager:
     This class serves as the coordinator between file watchers, parsers, and storage.
     It reacts to file system events, parses code files, and updates the graph accordingly.
     """
+    
+    # Supported file extensions
+    SUPPORTED_EXTENSIONS = ['.py', '.js', '.ts', '.tsx']
     
     def __init__(self, storage: InMemoryGraphStorage):
         """
@@ -49,10 +52,11 @@ class DependencyGraphManager:
         
         # Get file extension
         _, ext = os.path.splitext(filepath)
+        ext = ext.lower()
         
-        # Only process Python files
-        if ext.lower() != '.py':
-            logger.debug(f"Ignoring non-Python file: {filepath}")
+        # Only process supported file types
+        if ext not in self.SUPPORTED_EXTENSIONS:
+            logger.debug(f"Ignoring unsupported file type: {filepath}")
             return
         
         try:
@@ -81,4 +85,38 @@ class DependencyGraphManager:
             logger.error(f"Permission denied when accessing file: {filepath}")
         except Exception as e:
             logger.error(f"Error processing file event for {filepath}: {str(e)}")
-            raise 
+            raise
+    
+    def process_existing_files(self, directory: str) -> int:
+        """
+        Process all existing supported files in a directory.
+        
+        Args:
+            directory: Directory to process
+            
+        Returns:
+            Number of files processed
+            
+        Raises:
+            FileNotFoundError: If the directory doesn't exist
+        """
+        if not os.path.exists(directory):
+            raise FileNotFoundError(f"Directory not found: {directory}")
+        
+        if not os.path.isdir(directory):
+            raise ValueError(f"Not a directory: {directory}")
+        
+        count = 0
+        for root, _, files in os.walk(directory):
+            for file in files:
+                _, ext = os.path.splitext(file)
+                if ext.lower() in self.SUPPORTED_EXTENSIONS:
+                    filepath = os.path.join(root, file)
+                    try:
+                        self.on_file_event('created', filepath)
+                        count += 1
+                    except Exception as e:
+                        logger.error(f"Error processing file {filepath}: {str(e)}")
+        
+        logger.info(f"Processed {count} existing files in {directory}")
+        return count 
