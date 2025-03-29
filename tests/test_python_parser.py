@@ -7,6 +7,7 @@ import tempfile
 import unittest
 
 from graph_core.analyzer.python_parser import PythonParser
+from graph_core.analyzer import get_parser_for_file
 
 
 class TestPythonParser(unittest.TestCase):
@@ -16,6 +17,21 @@ class TestPythonParser(unittest.TestCase):
         """Set up the test environment."""
         self.parser = PythonParser()
         self.maxDiff = None  # Show full diff on assertion failures
+    
+    def test_get_parser_for_file(self):
+        """Test get_parser_for_file function returns the appropriate parser."""
+        # Python files should return a PythonParser
+        parser = get_parser_for_file('example.py')
+        self.assertIsInstance(parser, PythonParser)
+        
+        # Other file types should return None
+        self.assertIsNone(get_parser_for_file('example.txt'))
+        self.assertIsNone(get_parser_for_file('example.js'))
+        self.assertIsNone(get_parser_for_file('example.c'))
+        
+        # File extension should be case insensitive
+        parser = get_parser_for_file('example.PY')
+        self.assertIsInstance(parser, PythonParser)
     
     def test_parse_function_definitions(self):
         """Test parsing function definitions."""
