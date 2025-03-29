@@ -9,7 +9,7 @@ import os
 import logging
 import difflib
 import hashlib
-from typing import List, Dict, Set, Tuple, NamedTuple, Union, Optional
+from typing import List, Dict, Set, Tuple, NamedTuple, Union, Optional, Any
 from pathlib import Path
 
 # Set up logging
@@ -79,6 +79,132 @@ def calculate_similarity(file1: str, file2: str) -> float:
     except Exception as e:
         logger.error(f"Error comparing files {file1} and {file2}: {str(e)}")
         return 0.0
+
+
+def match_functions(
+    old_ast: Dict[str, List[Dict[str, Any]]], 
+    new_ast: Dict[str, List[Dict[str, Any]]], 
+    similarity_threshold: float = 0.7
+) -> Dict[str, str]:
+    """
+    Match functions between old and new ASTs based on their similarity.
+    
+    This function compares function bodies or characteristics like line counts,
+    parameter lists, and function structure to identify functions that have been
+    renamed but have similar implementations.
+    
+    Args:
+        old_ast: The AST nodes and edges from the old version of the file
+        new_ast: The AST nodes and edges from the new version of the file
+        similarity_threshold: Threshold for considering functions similar (0.0 to 1.0)
+                             Default is 0.7, which matches functions with moderate changes
+    
+    Returns:
+        A dictionary mapping old function IDs to new function IDs for functions
+        that appear to be renamed versions of each other
+    """
+    # Extract function nodes from old and new ASTs
+    old_functions = [node for node in old_ast.get('nodes', []) 
+                    if node.get('type') in ('function', 'method')]
+    
+    new_functions = [node for node in new_ast.get('nodes', []) 
+                    if node.get('type') in ('function', 'method')]
+    
+    # If either list is empty, no matches possible
+    if not old_functions or not new_functions:
+        return {}
+    
+    logger.debug(f"Matching functions: {len(old_functions)} in old AST, {len(new_functions)} in new AST")
+    
+    # Track best matches for each new function
+    best_matches: Dict[str, Tuple[str, float]] = {}
+    
+    # Compare each new function with each old function
+    for new_func in new_functions:
+        new_id = new_func.get('id')
+        new_name = new_func.get('name', '')
+        new_body = new_func.get('body', '')
+        new_start = new_func.get('start_point', (0, 0))
+        new_end = new_func.get('end_point', (0, 0))
+        new_lines = new_end[0] - new_start[0] if new_end and new_start else 0
+        
+        highest_similarity = 0.0
+        best_match = None
+        
+        for old_func in old_functions:
+            old_id = old_func.get('id')
+            old_name = old_func.get('name', '')
+            old_body = old_func.get('body', '')
+            old_start = old_func.get('start_point', (0, 0))
+            old_end = old_func.get('end_point', (0, 0))
+            old_lines = old_end[0] - old_start[0] if old_end and old_start else 0
+            
+            # Skip exact name matches (these are the same function, not renames)
+            if new_name == old_name:
+                continue
+            
+            # Calculate similarity based on:
+            # 1. Function body similarity if available
+            if new_body and old_body:
+                # Use SequenceMatcher to compare function bodies
+                body_similarity = difflib.SequenceMatcher(None, old_body, new_body).ratio()
+            else:
+                body_similarity = 0.0
+            
+            # 2. Line count similarity
+            line_count_diff = abs(new_lines - old_lines)
+            line_similarity = 1.0 / (1.0 + line_count_diff) if line_count_diff > 0 else 1.0
+            
+            # 3. Basic parameter structure similarity (if available)
+            param_similarity = 0.0
+            if 'parameters' in new_func and 'parameters' in old_func:
+                new_params = new_func.get('parameters', [])
+                old_params = old_func.get('parameters', [])
+                
+                if isinstance(new_params, list) and isinstance(old_params, list):
+                    param_count_diff = abs(len(new_params) - len(old_params))
+                    param_similarity = 1.0 / (1.0 + param_count_diff) if param_count_diff > 0 else 1.0
+            
+            # Combine different similarity metrics, with more weight on body similarity
+            similarity = (body_similarity * 0.7) + (line_similarity * 0.2) + (param_similarity * 0.1)
+            
+            # Debug log for significant matches
+            if similarity > 0.4:
+                logger.debug(f"Function similarity: {old_name} -> {new_name}: {similarity:.2f}")
+            
+            # Track best match
+            if similarity > highest_similarity:
+                highest_similarity = similarity
+                best_match = old_id
+        
+        # If we found a good enough match, record it
+        if best_match and highest_similarity >= similarity_threshold:
+            best_matches[new_id] = (best_match, highest_similarity)
+    
+    # Resolve conflicts - if multiple new functions match the same old function,
+    # keep only the best match
+    used_old_ids = set()
+    matched_functions = {}
+    
+    # Sort by similarity to handle the most similar matches first
+    sorted_matches = sorted(
+        best_matches.items(), 
+        key=lambda x: x[1][1], 
+        reverse=True
+    )
+    
+    for new_id, (old_id, similarity) in sorted_matches:
+        # If this old_id is already matched, skip
+        if old_id in used_old_ids:
+            continue
+            
+        # Record the match
+        matched_functions[old_id] = new_id
+        used_old_ids.add(old_id)
+        
+        logger.info(f"Matched function: {old_id} -> {new_id} (similarity: {similarity:.2f})")
+    
+    return matched_functions
 
 
 def detect_renames(prev_files: Union[List[str], Set[str]], 

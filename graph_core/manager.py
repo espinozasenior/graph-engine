@@ -15,7 +15,7 @@ from collections import deque
 from graph_core.analyzer import get_parser_for_file
 from graph_core.storage.in_memory_graph import InMemoryGraphStorage
 from graph_core.dynamic.import_hook import initialize_hook, get_function_calls, FunctionCallEvent
-from graph_core.watchers.rename_detection import detect_renames, RenameEvent
+from graph_core.watchers.rename_detection import detect_renames, RenameEvent, match_functions
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -403,6 +403,79 @@ class DependencyGraphManager:
         
         return updated
     
+    def update_function_names(self, old_ast: Dict[str, List[Dict[str, Any]]], new_ast: Dict[str, List[Dict[str, Any]]]) -> Dict[str, str]:
+        """
+        Update node names for functions that have been renamed but have similar bodies.
+        
+        Args:
+            old_ast: The AST nodes and edges from the old version of the file
+            new_ast: The AST nodes and edges from the new version of the file
+            
+        Returns:
+            A dictionary mapping old function IDs to new function IDs of renamed functions
+            
+        Note:
+            This method modifies the storage directly, updating node names instead of 
+            removing and recreating nodes when a function is renamed.
+        """
+        try:
+            # Match functions between old and new ASTs
+            function_matches = match_functions(old_ast, new_ast)
+            
+            if not function_matches:
+                return {}
+            
+            logger.info(f"Detected {len(function_matches)} renamed functions")
+            
+            # Track which functions were successfully updated
+            updated_functions = {}
+            
+            # Process each matched function
+            for old_id, new_id in function_matches.items():
+                # Get the nodes from old and new ASTs
+                old_func = next((node for node in old_ast.get('nodes', []) if node.get('id') == old_id), None)
+                new_func = next((node for node in new_ast.get('nodes', []) if node.get('id') == new_id), None)
+                
+                if not old_func or not new_func:
+                    continue
+                
+                # Get the old node from storage
+                node = self.storage.get_node(old_id)
+                if not node:
+                    continue
+                
+                old_name = node.get('name', '')
+                new_name = new_func.get('name', '')
+                
+                # Update the node's name and other relevant properties
+                node['name'] = new_name
+                
+                # Create a rename history if it doesn't exist
+                if 'rename_history' not in node:
+                    node['rename_history'] = []
+                
+                # Add the old name to the rename history
+                node['rename_history'].append(old_name)
+                
+                # Update any other properties that might have changed
+                for key in ['parameters', 'body', 'start_point', 'end_point']:
+                    if key in new_func:
+                        node[key] = new_func[key]
+                
+                # Update the node in storage
+                attrs = {k: v for k, v in node.items() if k != 'id'}
+                self.storage.graph.add_node(old_id, **attrs)
+                
+                # Record the update
+                updated_functions[old_id] = new_id
+                logger.info(f"Updated function name: {old_name} -> {new_name} (id: {old_id})")
+            
+            return updated_functions
+            
+        except Exception as e:
+            logger.error(f"Error updating function names: {str(e)}", exc_info=True)
+            return {}
+    
     def on_file_event(self, event_type: str, filepath: str) -> None:
         """
         Handle a file event by updating the graph accordingly.
@@ -465,10 +538,40 @@ class DependencyGraphManager:
                     return
                 
                 # Parse the file
-                parse_result = parser.parse_file(filepath)
+                new_ast = parser.parse_file(filepath)
                 
-                # Update the storage
-                self.storage.add_or_update_file(filepath, parse_result)
+                # Get the original AST for this file
+                old_ast = {
+                    'nodes': [],
+                    'edges': []
+                }
+                
+                if filepath in self.storage.file_nodes:
+                    # Build the old AST from the storage
+                    old_node_ids = self.storage.file_nodes.get(filepath, set())
+                    old_nodes = [self.storage.get_node(node_id) for node_id in old_node_ids]
+                    old_ast['nodes'] = [node for node in old_nodes if node]
+                    
+                    # Get edges connected to these nodes
+                    old_edges = self.storage.get_edges_for_nodes(old_node_ids)
+                    old_ast['edges'] = old_edges
+                    
+                    # Check for renamed functions
+                    renamed_functions = self.update_function_names(old_ast, new_ast)
+                    
+                    # Remove renamed functions from the new AST to avoid duplicates
+                    if renamed_functions:
+                        # Create a lookup set of new_ids that correspond to renamed functions
+                        renamed_new_ids = set(renamed_functions.values())
+                        
+                        # Filter out these nodes from the new AST
+                        new_ast['nodes'] = [
+                            node for node in new_ast['nodes'] 
+                            if node.get('id') not in renamed_new_ids
+                        ]
+                
+                # Update the storage with the new AST
+                self.storage.add_or_update_file(filepath, new_ast)
                 logger.info(f"Updated graph for {event_type} file: {filepath}")
             
             elif event_type == 'deleted':

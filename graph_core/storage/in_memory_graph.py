@@ -198,4 +198,41 @@ class InMemoryGraphStorage:
         """
         if node_id in self.graph:
             return {**self.graph.nodes[node_id], 'id': node_id}
-        return None 
+        return None
+        
+    def get_edges_for_nodes(self, node_ids: Set[str]) -> List[Dict[str, Any]]:
+        """
+        Get all edges connected to any of the specified nodes.
+        
+        Args:
+            node_ids: A set of node IDs to find edges for
+            
+        Returns:
+            A list of dictionaries representing edges where at least one endpoint is in node_ids
+        """
+        edges = []
+        
+        # Check each node in the provided set
+        for node_id in node_ids:
+            if node_id not in self.graph:
+                continue
+                
+            # Get outgoing edges (where node is the source)
+            for _, target, attrs in self.graph.out_edges(node_id, data=True):
+                edges.append({**attrs, 'source': node_id, 'target': target})
+                
+            # Get incoming edges (where node is the target)
+            for source, _, attrs in self.graph.in_edges(node_id, data=True):
+                edges.append({**attrs, 'source': source, 'target': node_id})
+        
+        # Remove duplicates if a node is both source and target in the set
+        unique_edges = []
+        seen_edges = set()
+        
+        for edge in edges:
+            edge_key = (edge['source'], edge['target'])
+            if edge_key not in seen_edges:
+                seen_edges.add(edge_key)
+                unique_edges.append(edge)
+        
+        return unique_edges 

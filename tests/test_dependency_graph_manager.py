@@ -18,6 +18,8 @@ class TestDependencyGraphManager(unittest.TestCase):
     def setUp(self):
         """Set up the test environment."""
         self.storage = Mock(spec=InMemoryGraphStorage)
+        # Add file_nodes attribute to mock to support the new functionality
+        self.storage.file_nodes = {}
         self.manager = DependencyGraphManager(self.storage)
     
     def test_init(self):
