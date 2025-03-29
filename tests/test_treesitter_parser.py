@@ -153,7 +153,9 @@ def test_file_extension_mismatch(mock_exists):
 @patch('os.path.exists', return_value=True)
 def test_parser_caching(mock_exists):
     """Test that parsers are cached and reused."""
+    # First we need to mock os.path.getsize to avoid triggering the dummy file detection
     with patch('pathlib.Path.exists', return_value=True), \
+         patch('os.path.getsize', return_value=10000), \
          patch('graph_core.analyzer.treesitter_parser.tree_sitter_parser.Language') as mock_lang, \
          patch('graph_core.analyzer.treesitter_parser.tree_sitter_parser.Parser') as mock_parser_class:
         

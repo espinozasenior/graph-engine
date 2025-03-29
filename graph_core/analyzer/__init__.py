@@ -4,17 +4,16 @@ Analyzer package for parsing and analyzing code files.
 
 import os
 import logging
-from typing import Optional, Union
+from typing import Optional
 
-from graph_core.analyzer.python_parser import PythonParser
 from graph_core.analyzer.treesitter_parser import TreeSitterParser
 
-__all__ = ['TreeSitterParser', 'PythonParser', 'get_parser_for_file']
+__all__ = ['TreeSitterParser', 'get_parser_for_file']
 
 logger = logging.getLogger(__name__)
 
 
-def get_parser_for_file(file_path: str) -> Optional[Union[TreeSitterParser, PythonParser]]:
+def get_parser_for_file(file_path: str) -> Optional[TreeSitterParser]:
     """
     Get the appropriate parser for a given file based on its extension.
     
@@ -26,7 +25,7 @@ def get_parser_for_file(file_path: str) -> Optional[Union[TreeSitterParser, Pyth
         
     Examples:
         >>> parser = get_parser_for_file('example.py')
-        >>> isinstance(parser, TreeSitterParser) or isinstance(parser, PythonParser)
+        >>> isinstance(parser, TreeSitterParser)
         True
         >>> parser = get_parser_for_file('example.js')
         >>> isinstance(parser, TreeSitterParser)
@@ -47,17 +46,10 @@ def get_parser_for_file(file_path: str) -> Optional[Union[TreeSitterParser, Pyth
     
     if ext in extensions_to_language:
         try:
-            # Try to use TreeSitterParser first
+            # Create TreeSitterParser for supported file types
             return TreeSitterParser(extensions_to_language[ext])
         except Exception as e:
             logger.warning(f"Failed to create TreeSitterParser for {file_path}: {str(e)}")
-            
-            # Fall back to PythonParser for Python files
-            if ext == '.py':
-                logger.info(f"Falling back to PythonParser for {file_path}")
-                return PythonParser()
-            
-            logger.error(f"No fallback parser available for {ext} files")
             return None
     
     # Return None for unsupported file types

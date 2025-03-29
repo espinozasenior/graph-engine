@@ -170,9 +170,14 @@ class TestDependencyGraphManager(unittest.TestCase):
         # Set up mocks
         mock_exists.return_value = True
         mock_isdir.return_value = True
+        
+        # Use os.path.join to make paths OS-independent
+        root_dir = os.path.normpath('/test')
+        subdir = os.path.join(root_dir, 'subdir')
+        
         mock_walk.return_value = [
-            ('/test', ['subdir'], ['test1.py', 'test2.js', 'test3.txt']),
-            ('/test/subdir', [], ['test4.ts', 'test5.tsx', 'test6.md'])
+            (root_dir, ['subdir'], ['test1.py', 'test2.js', 'test3.txt']),
+            (subdir, [], ['test4.ts', 'test5.tsx', 'test6.md'])
         ]
         
         mock_parser = Mock()
@@ -183,17 +188,24 @@ class TestDependencyGraphManager(unittest.TestCase):
         mock_get_parser.return_value = mock_parser
         
         # Call the method
-        result = self.manager.process_existing_files('/test')
+        result = self.manager.process_existing_files(root_dir)
         
         # Verify the result
         self.assertEqual(result, 4)  # 4 supported files
         
         # Verify parser calls
         self.assertEqual(mock_get_parser.call_count, 4)
-        mock_get_parser.assert_any_call('/test/test1.py')
-        mock_get_parser.assert_any_call('/test/test2.js')
-        mock_get_parser.assert_any_call('/test/subdir/test4.ts')
-        mock_get_parser.assert_any_call('/test/subdir/test5.tsx')
+        
+        # Use os.path.join to create the expected paths
+        file1 = os.path.join(root_dir, 'test1.py')
+        file2 = os.path.join(root_dir, 'test2.js')
+        file3 = os.path.join(subdir, 'test4.ts')
+        file4 = os.path.join(subdir, 'test5.tsx')
+        
+        mock_get_parser.assert_any_call(file1)
+        mock_get_parser.assert_any_call(file2)
+        mock_get_parser.assert_any_call(file3)
+        mock_get_parser.assert_any_call(file4)
         
         # Verify storage updates
         self.assertEqual(self.storage.add_or_update_file.call_count, 4)

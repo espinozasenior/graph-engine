@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 """
-Sample Python file for testing the TreeSitterParser.
-
-This file contains various Python constructs that should be detected
-by the TreeSitterParser.
+Sample Python file for testing the graph builder.
 """
 import os
 import sys
@@ -46,6 +43,24 @@ def calculate_future_date(days_from_now):
     return future_date
 
 
+class Calculator:
+    """A simple calculator class."""
+    
+    def __init__(self):
+        """Initialize the calculator."""
+        self.result = 0
+    
+    def add(self, a, b):
+        """Add two numbers."""
+        self.result = a + b
+        return self.result
+    
+    def subtract(self, a, b):
+        """Subtract b from a."""
+        self.result = a - b
+        return self.result
+
+
 def main():
     """Main function."""
     # Create a person
@@ -65,6 +80,10 @@ def main():
     # Use os module
     current_dir = os.getcwd()
     print(f"Current directory: {current_dir}")
+    
+    calc = Calculator()
+    print(f"2 + 3 = {calc.add(2, 3)}")
+    print(f"5 - 2 = {calc.subtract(5, 2)}")
     
     return 0
 

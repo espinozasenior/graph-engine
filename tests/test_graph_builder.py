@@ -1,5 +1,5 @@
 """
-Tests for the graph builder which integrates TreeSitterParser.
+Tests for the graph integration with TreeSitterParser.
 """
 import os
 import sys
@@ -12,7 +12,8 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from graph_core.analyzer import get_parser_for_file
-from graph_core.builder.graph_builder import GraphBuilder
+from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.manager import DependencyGraphManager
 
 
 @pytest.fixture
@@ -58,105 +59,91 @@ class TestClass {
     os.unlink(temp_name)
 
 
-@pytest.fixture
-def mock_tree_sitter_parser():
-    """Mock the TreeSitterParser to avoid dependency on language files."""
-    with patch('graph_core.analyzer.treesitter_parser.TreeSitterParser') as mock_cls:
-        # Configure the mock parser
-        mock_parser = MagicMock()
-        mock_cls.return_value = mock_parser
+def test_process_file_with_mock_parser(sample_python_file):
+    """Test processing a file with the dependency manager."""
+    # Create mock parser
+    mock_parser = MagicMock()
+    mock_parser.parse_file.return_value = {
+        'nodes': [
+            {
+                'id': 'function:hello_world',
+                'type': 'function',
+                'name': 'hello_world',
+                'filepath': sample_python_file,
+                'start_line': 1,
+                'end_line': 2
+            },
+            {
+                'id': 'class:TestClass',
+                'type': 'class',
+                'name': 'TestClass',
+                'filepath': sample_python_file,
+                'start_line': 4,
+                'end_line': 6
+            }
+        ],
+        'edges': [
+            {
+                'source': 'class:TestClass',
+                'target': 'function:hello_world',
+                'type': 'calls'
+            }
+        ]
+    }
+    
+    # Patch get_parser_for_file to return our mock
+    with patch('graph_core.manager.get_parser_for_file', return_value=mock_parser):
+        # Create storage and manager
+        storage = InMemoryGraphStorage()
+        manager = DependencyGraphManager(storage)
         
-        # Configure parse_file to return a valid result
-        mock_parser.parse_file.return_value = {
-            'nodes': [
-                {
-                    'id': 'function:hello_world',
-                    'type': 'function',
-                    'name': 'hello_world',
-                    'filepath': 'test.py',
-                    'start_line': 1,
-                    'end_line': 2
-                },
-                {
-                    'id': 'class:TestClass',
-                    'type': 'class',
-                    'name': 'TestClass',
-                    'filepath': 'test.py',
-                    'start_line': 4,
-                    'end_line': 6
-                }
-            ],
-            'edges': [
-                {
-                    'source': 'class:TestClass',
-                    'target': 'function:hello_world',
-                    'type': 'calls'
-                }
-            ]
-        }
+        # Process the file
+        manager.on_file_event('created', sample_python_file)
         
-        yield mock_parser
-
-
-def test_graph_builder_with_python_file(sample_python_file, mock_tree_sitter_parser):
-    """Test GraphBuilder with a Python file."""
-    # Create a graph builder
-    builder = GraphBuilder()
-    
-    # Process the file
-    builder.process_file(sample_python_file)
-    
-    # Get the graph
-    graph = builder.get_graph()
-    
-    # Verify the nodes were added to the graph
-    assert len(graph.nodes) > 0
-    
-    # Verify the edges were added
-    assert len(graph.edges) > 0
-    
-    # Verify the mock parser was called with the right arguments
-    mock_tree_sitter_parser.parse_file.assert_called_with(sample_python_file)
+        # Get all nodes
+        nodes = storage.get_all_nodes()
+        
+        # Verify nodes were added
+        assert len(nodes) > 0
+        
+        # Verify the mock parser was called with the right arguments
+        mock_parser.parse_file.assert_called_with(sample_python_file)
 
 
 @patch('graph_core.analyzer.get_parser_for_file')
-def test_graph_builder_with_unsupported_file(mock_get_parser, tmp_path):
-    """Test GraphBuilder behavior with unsupported file types."""
+def test_process_unsupported_file(mock_get_parser, tmp_path):
+    """Test processing an unsupported file type."""
     # Configure mock to return None for unsupported files
     mock_get_parser.return_value = None
     
-    # Create a graph builder
-    builder = GraphBuilder()
+    # Create storage and manager
+    storage = InMemoryGraphStorage()
+    manager = DependencyGraphManager(storage)
     
     # Create a text file
     text_file = tmp_path / "test.txt"
     text_file.write_text("This is not a supported file type")
     
     # Process the file
-    builder.process_file(str(text_file))
+    manager.on_file_event('created', str(text_file))
     
-    # Get the graph - should be empty since no parser was found
-    graph = builder.get_graph()
+    # Get all nodes - should be empty
+    nodes = storage.get_all_nodes()
     
     # Verify no nodes were added
-    assert len(graph.nodes) == 0
-    assert len(graph.edges) == 0
+    assert len(nodes) == 0
 
 
-@patch('graph_core.analyzer.PythonParser')
 @patch('graph_core.analyzer.TreeSitterParser')
-def test_parser_fallback(mock_ts_parser, mock_py_parser, sample_python_file):
-    """Test the parser fallback mechanism."""
-    # Configure TreeSitterParser to raise an exception
-    mock_ts_parser.side_effect = RuntimeError("Failed to load language")
-    
-    # Configure PythonParser to return a valid result
-    mock_parser = mock_py_parser.return_value
+def test_tree_sitter_integration(mock_ts_parser, sample_python_file):
+    """Test the TreeSitterParser integration."""
+    # Configure TreeSitterParser to return a valid result
+    mock_parser = mock_ts_parser.return_value
     mock_parser.parse_file.return_value = {
         'nodes': [
             {
                 'id': 'function:hello_world',
-                'type': 'function',
+                'type': 'function', 
                 'name': 'hello_world',
                 'filepath': sample_python_file,
                 'start_line': 1,
@@ -169,20 +156,21 @@ def test_parser_fallback(mock_ts_parser, mock_py_parser, sample_python_file):
     # Get a parser for a Python file
     parser = get_parser_for_file(sample_python_file)
     
-    # Verify we got a PythonParser
+    # Verify we got a TreeSitterParser
     assert parser is mock_parser
     
-    # Create a graph builder
-    builder = GraphBuilder()
+    # Create storage and manager
+    storage = InMemoryGraphStorage()
+    manager = DependencyGraphManager(storage)
     
     # Process the file
-    builder.process_file(sample_python_file)
+    manager.on_file_event('created', sample_python_file)
     
-    # Get the graph
-    graph = builder.get_graph()
+    # Get all nodes
+    nodes = storage.get_all_nodes()
     
-    # Verify nodes were added by the fallback parser
-    assert len(graph.nodes) > 0
+    # Verify nodes were added
+    assert len(nodes) > 0
 
 
 if __name__ == "__main__":
