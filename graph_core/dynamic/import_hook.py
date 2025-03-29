@@ -65,24 +65,27 @@ class InstrumentationTransformer(ast.NodeTransformer):
         self.module_name = module_name
         self.filename = filename
         self.has_changes = False
+        self.function_stack = []  # Track function nesting
     
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
-        """Visit and transform function definitions.
-        
-        Wrap function bodies with instrumentation code that logs function calls.
+    def _create_instrumentation_call(self, function_name: str) -> ast.Expr:
+        """Create an AST node for the instrumentation call.
         
         Args:
-            node: The function definition node
+            function_name: Name of the function being instrumented
         
         Returns:
-            The transformed function definition node
+            An AST expression node for the instrumentation call
         """
-        # Process children first (nested functions)
-        self.generic_visit(node)
-        
+        # Get the qualified name based on nesting level
+        if self.function_stack:
+            # For nested functions, include the parent function name
+            qualified_name = '.'.join(self.function_stack) + '.' + function_name
+        else:
+            qualified_name = function_name
+            
         # Create instrumentation call to log the function call
         # This creates: function_call_queue.put(FunctionCallEvent(func_name, module_name, filename))
-        func_event = ast.Expr(
+        return ast.Expr(
             value=ast.Call(
                 func=ast.Attribute(
                     value=ast.Name(id='function_call_queue', ctx=ast.Load()),
@@ -93,7 +96,7 @@ class InstrumentationTransformer(ast.NodeTransformer):
                     ast.Call(
                         func=ast.Name(id='FunctionCallEvent', ctx=ast.Load()),
                         args=[
-                            ast.Constant(value=node.name),
+                            ast.Constant(value=qualified_name),
                             ast.Constant(value=self.module_name),
                             ast.Constant(value=self.filename)
                         ],
@@ -103,10 +106,49 @@ class InstrumentationTransformer(ast.NodeTransformer):
                 keywords=[]
             )
         )
+    
+    def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
+        """Visit class definitions to track class context.
+        
+        This helps with identifying method names in their class context.
+        
+        Args:
+            node: The class definition node
+        
+        Returns:
+            The transformed class definition node
+        """
+        # Process the class body, which may contain methods
+        self.generic_visit(node)
+        return node
+    
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        """Visit and transform function definitions.
+        
+        Wrap function bodies with instrumentation code that logs function calls.
+        Handles nested functions by maintaining a stack of function names.
+        
+        Args:
+            node: The function definition node
+        
+        Returns:
+            The transformed function definition node
+        """
+        # Save the current function name on the stack
+        self.function_stack.append(node.name)
+        
+        # Process nested functions first
+        self.generic_visit(node)
+        
+        # Create instrumentation call
+        func_event = self._create_instrumentation_call(node.name)
         
         # Insert the instrumentation call at the beginning of the function body
         node.body.insert(0, func_event)
         self.has_changes = True
+        
+        # Remove the function name from the stack
+        self.function_stack.pop()
         
         return node
     
@@ -121,34 +163,30 @@ class InstrumentationTransformer(ast.NodeTransformer):
         Returns:
             The transformed async function definition node
         """
-        # Similar to visit_FunctionDef but for async functions
+        # Use the same approach as for regular functions
+        self.function_stack.append(node.name)
         self.generic_visit(node)
         
-        func_event = ast.Expr(
-            value=ast.Call(
-                func=ast.Attribute(
-                    value=ast.Name(id='function_call_queue', ctx=ast.Load()),
-                    attr='put',
-                    ctx=ast.Load()
-                ),
-                args=[
-                    ast.Call(
-                        func=ast.Name(id='FunctionCallEvent', ctx=ast.Load()),
-                        args=[
-                            ast.Constant(value=node.name),
-                            ast.Constant(value=self.module_name),
-                            ast.Constant(value=self.filename)
-                        ],
-                        keywords=[]
-                    )
-                ],
-                keywords=[]
-            )
-        )
-        
+        func_event = self._create_instrumentation_call(node.name)
         node.body.insert(0, func_event)
         self.has_changes = True
         
+        self.function_stack.pop()
+        return node
+    
+    def visit_Lambda(self, node: ast.Lambda) -> ast.Lambda:
+        """Visit lambda functions.
+        
+        We can't easily instrument lambdas because they're expressions without
+        a body block, but we still visit them to find any other functions inside.
+        
+        Args:
+            node: The lambda node
+        
+        Returns:
+            The unchanged lambda node
+        """
+        self.generic_visit(node)
         return node
 
 

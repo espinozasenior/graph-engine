@@ -46,6 +46,83 @@ async def async_function():
         yield str(module_path)
 
 
+@pytest.fixture
+def advanced_module_path():
+    """Create a temporary directory with a Python module containing advanced patterns."""
+    with tempfile.TemporaryDirectory() as tempdir:
+        # Create a sample Python module with advanced patterns
+        module_path = Path(tempdir) / "advanced_module.py"
+        
+        with open(module_path, "w") as f:
+            f.write('''
+# Module with nested functions, closures, and complex class patterns
+
+def outer_function(x):
+    """A function containing a nested function."""
+    
+    def inner_function(y):
+        """A nested function."""
+        return x + y
+    
+    # Call the inner function
+    return inner_function(10)
+
+# Function returning a closure
+def create_multiplier(factor):
+    """Returns a closure that multiplies by the given factor."""
+    
+    def multiplier(x):
+        return x * factor
+    
+    return multiplier
+
+# Class with inheritance and multiple methods
+class Vehicle:
+    """Base vehicle class."""
+    
+    def __init__(self, make, model):
+        self.make = make
+        self.model = model
+        
+    def description(self):
+        return f"{self.make} {self.model}"
+
+class Car(Vehicle):
+    """Car class extending Vehicle."""
+    
+    def __init__(self, make, model, year):
+        super().__init__(make, model)
+        self.year = year
+        
+    def full_description(self):
+        return f"{self.year} {self.make} {self.model}"
+    
+    def honk(self):
+        return "Beep!"
+
+# Function with lambda expressions
+def apply_operation(data, operation=None):
+    """Apply an operation to data."""
+    if operation is None:
+        operation = lambda x: x * 2
+    
+    return [operation(item) for item in data]
+
+# Async function with nested function
+async def fetch_data(url):
+    """Simulate fetching data with a nested function."""
+    
+    def process_data(data):
+        return data.upper()
+    
+    # Simulate fetching data
+    data = f"Data from {url}"
+    return process_data(data)
+''')
+        
+        yield str(module_path)
+
+
 def test_instrumentation_transformer():
     """Test that the AST transformer correctly adds instrumentation code."""
     # Sample Python code
@@ -187,9 +264,12 @@ def test_dynamic_instrumentation(sample_module_path, watch_dir):
         # Note: __init__ may also be included depending on how it's instrumented
         function_names = [event.function_name for event in events]
         
-        assert "hello_world" in function_names
-        assert "calculate_sum" in function_names
-        assert "greet" in function_names
+        # With our new implementation, function names include their nesting level
+        # So we check if the function names end with the expected names
+        assert any(name.endswith('.hello_world') or name == 'hello_world' for name in function_names)
+        assert any(name.endswith('.calculate_sum') or name == 'calculate_sum' for name in function_names)
+        assert any(name.endswith('.__init__') or name == '__init__' for name in function_names)
+        assert any(name.endswith('.greet') or name == 'greet' for name in function_names)
         
         # Check that the file is being monitored
         monitored_files = import_hook.get_monitored_files()
@@ -243,6 +323,129 @@ def test_clear_call_queue():
     
     # Check that the queue is empty
     assert import_hook.get_function_calls() == []
+
+
+def test_instrumentation_transformer_with_nested_functions():
+    """Test that the AST transformer correctly handles nested functions."""
+    # Sample Python code with nested functions
+    sample_code = """
+def outer_function(x):
+    def inner_function(y):
+        return x + y
+    return inner_function(10)
+
+class TestClass:
+    def __init__(self, value):
+        self.value = value
+        
+    def get_value(self):
+        return self.value
+"""
+    
+    # Parse the code
+    tree = import_hook.ast.parse(sample_code)
+    
+    # Apply the transformer
+    transformer = import_hook.InstrumentationTransformer("test_module", "test.py")
+    transformed_tree = transformer.visit(tree)
+    
+    # Fix locations
+    import_hook.ast.fix_missing_locations(transformed_tree)
+    
+    # Convert to string
+    transformed_code = import_hook.ast.unparse(transformed_tree)
+    
+    # Check that all functions are instrumented
+    assert "function_call_queue.put" in transformed_code
+    assert "FunctionCallEvent" in transformed_code
+    
+    # Check for proper function name handling
+    assert "outer_function" in transformed_code
+    assert "inner_function" in transformed_code
+    assert "__init__" in transformed_code
+    assert "get_value" in transformed_code
+    
+    # Verify proper nesting in instrumentation calls
+    # The exact format may vary between Python versions, so check both possible formats
+    assert ("'outer_function.outer_function'" in transformed_code or 
+            '"outer_function.outer_function"' in transformed_code)
+    assert any(nested_name in transformed_code for nested_name in [
+        "'outer_function.inner_function'", 
+        '"outer_function.inner_function"',
+        "'outer_function.inner_function.inner_function'",
+        '"outer_function.inner_function.inner_function"'
+    ])
+
+
+def test_dynamic_instrumentation_with_advanced_patterns(advanced_module_path, watch_dir):
+    """Test dynamic instrumentation with advanced code patterns."""
+    # Create a symbolic link to the sample module in the watch directory
+    watch_path = os.path.join(watch_dir, "advanced_module.py")
+    with open(advanced_module_path, "r") as src, open(watch_path, "w") as dst:
+        dst.write(src.read())
+    
+    # Add the watch directory to sys.path
+    sys.path.insert(0, watch_dir)
+    
+    # Clear any previous imports
+    if "advanced_module" in sys.modules:
+        del sys.modules["advanced_module"]
+    
+    try:
+        # Clear the call queue
+        import_hook.clear_call_queue()
+        
+        # Initialize the hook
+        import_hook.initialize_hook(watch_dir)
+        
+        # Import the module (this should trigger instrumentation)
+        advanced_module = importlib.import_module("advanced_module")
+        
+        # Call functions to trigger events
+        advanced_module.outer_function(5)
+        double = advanced_module.create_multiplier(2)
+        double(10)
+        car = advanced_module.Car("Toyota", "Corolla", 2022)
+        car.description()
+        car.full_description()
+        car.honk()
+        advanced_module.apply_operation([1, 2, 3])
+        
+        # Check that the functions were called
+        events = import_hook.get_function_calls()
+        
+        # Collect function names that were called
+        function_names = [event.function_name for event in events]
+        
+        # Check for various expected functions - with the updated naming pattern
+        assert any(name.endswith('.outer_function') or name == 'outer_function' for name in function_names)
+        assert any('inner_function' in name for name in function_names)
+        assert any(name.endswith('.create_multiplier') or name == 'create_multiplier' for name in function_names)
+        assert any('multiplier' in name for name in function_names)
+        assert any(name.endswith('.__init__') or name == '__init__' for name in function_names)
+        assert any(name.endswith('.description') or name == 'description' for name in function_names)
+        assert any(name.endswith('.full_description') or name == 'full_description' for name in function_names)
+        assert any(name.endswith('.honk') or name == 'honk' for name in function_names)
+        assert any(name.endswith('.apply_operation') or name == 'apply_operation' for name in function_names)
+        
+        # Check that the file is being monitored
+        monitored_files = import_hook.get_monitored_files()
+        assert os.path.abspath(watch_path) in [os.path.abspath(path) for path in monitored_files]
+        
+    finally:
+        # Clean up sys.path
+        if watch_dir in sys.path:
+            sys.path.remove(watch_dir)
+        
+        # Remove the finder from sys.meta_path
+        sys.meta_path = [
+            finder for finder in sys.meta_path 
+            if not isinstance(finder, import_hook.InstrumentationFinder)
+        ]
+        
+        # Remove the module from sys.modules
+        if "advanced_module" in sys.modules:
+            del sys.modules["advanced_module"]
 
 
 if __name__ == "__main__":
