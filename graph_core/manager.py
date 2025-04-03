@@ -14,7 +14,7 @@ from collections import deque
 
 from graph_core.analyzer import get_parser_for_file
 from graph_core.storage.in_memory import InMemoryGraphStorage
-from graph_core.storage.json_storage import JSONGraphStorage
+from graph_core.storage.json_storage import JSONGraphStorage, calculate_content_hash
 from graph_core.dynamic.import_hook import initialize_hook, get_function_calls, FunctionCallEvent
 from graph_core.watchers.rename_detection import detect_renames, RenameEvent, match_functions
 from graph_core.security.secret_scanner import scan_file_for_secrets
@@ -611,7 +611,7 @@ class DependencyGraphManager:
         
         # Only process supported file types
         if ext not in self.SUPPORTED_EXTENSIONS:
-            logger.debug(f"Ignoring unsupported file type: {filepath}")
+            # logger.debug(f"Ignoring unsupported file type: {filepath}")
             return
             
         # Add to created files buffer for rename detection
@@ -625,73 +625,114 @@ class DependencyGraphManager:
         for event in rename_events:
             if event.new_path == filepath:
                 # Update the filepath for all nodes from the old file
+                # Note: Hash might become stale here if content changed during rename
+                # A robust solution might re-calculate hash after rename confirmation.
                 renamed = self.update_node_filepath(event.old_path, filepath)
                 break
         
         # If not a rename, process as a new file
         if not renamed:
-            # Get the appropriate parser
-            parser = get_parser_for_file(filepath)
-            if parser is None:
-                logger.warning(f"No parser available for {filepath}")
-                return
-            
-            # Parse the file
-            parse_result = parser.parse_file(filepath)
-            
-            # Scan for secrets and update parse result with secret information
-            parse_result = scan_parse_result_for_secrets(parse_result, filepath)
-            
-            # Update the storage
-            self.storage.add_or_update_file(filepath, parse_result)
-            logger.info(f"Updated graph for created file: {filepath}")
+            try:
+                # Calculate hash
+                with open(filepath, 'rb') as f:
+                    content = f.read()
+                content_hash = calculate_content_hash(content)
+
+                # Get the appropriate parser
+                parser = get_parser_for_file(filepath)
+                if parser is None:
+                    logger.warning(f"No parser available for {filepath}")
+                    return
+
+                # Parse the file
+                parse_result = parser.parse_file(filepath)
+
+                # Scan for secrets and update parse result with secret information
+                parse_result = scan_parse_result_for_secrets(parse_result, filepath)
+
+                # Update the storage, including the hash
+                self.storage.add_or_update_file(filepath, parse_result, content_hash=content_hash)
+                logger.info(f"Updated graph for created file: {filepath}")
+
+            except FileNotFoundError:
+                 logger.warning(f"File not found during creation handling: {filepath}. Maybe deleted quickly?")
+            except Exception as e:
+                logger.error(f"Error handling created file {filepath}: {str(e)}", exc_info=True)
     
     def _handle_file_modified(self, filepath: str) -> None:
         """
         Handle 'modified' file event.
-        
+
         Args:
             filepath: Path to the file that was modified
         """
         # Get file extension
         _, ext = os.path.splitext(filepath)
         ext = ext.lower()
-        
+
         # Only process supported file types
         if ext not in self.SUPPORTED_EXTENSIONS:
-            logger.debug(f"Ignoring unsupported file type: {filepath}")
+            # logger.debug(f"Ignoring unsupported file type: {filepath}")
             return
-            
-        # Get the appropriate parser
-        parser = get_parser_for_file(filepath)
-        if parser is None:
-            logger.warning(f"No parser available for {filepath}")
-            return
-        
-        # Parse the file
-        new_ast = parser.parse_file(filepath)
-        
-        # Get the original AST for this file
-        old_ast = {
-            'nodes': [],
-            'edges': []
-        }
-        
-        # Get existing nodes for this file
-        for node_id in self.storage.file_nodes.get(filepath, set()):
-            node = self.storage.get_node(node_id)
-            if node:
-                old_ast['nodes'].append(node)
-        
-        # Check for renamed functions
-        self.update_function_names(old_ast, new_ast)
-        
-        # Scan for secrets and update AST with secret information
-        new_ast = scan_parse_result_for_secrets(new_ast, filepath)
-        
-        # Update the storage
-        self.storage.add_or_update_file(filepath, new_ast)
-        logger.info(f"Updated graph for modified file: {filepath}")
+
+        try:
+            # Calculate hash of the current file content
+            with open(filepath, 'rb') as f:
+                current_content = f.read()
+            current_hash = calculate_content_hash(current_content)
+
+            # Get the previously stored hash
+            stored_hash = self.storage.get_file_content_hash(filepath)
+
+            # If hashes match, skip processing
+            if stored_hash and stored_hash == current_hash:
+                logger.info(f"File content unchanged, skipping re-parse for: {filepath}")
+                return
+
+            logger.info(f"File content changed (or no hash found), processing: {filepath}")
+            # Get the appropriate parser
+            parser = get_parser_for_file(filepath)
+            if parser is None:
+                logger.warning(f"No parser available for {filepath}")
+                return
+
+            # Parse the file
+            new_ast = parser.parse_file(filepath)
+
+            # Get the original AST for this file (needed for rename detection)
+            old_ast = {
+                'nodes': [],
+                'edges': []
+            }
+            old_node_ids = self.storage.file_nodes.get(filepath, set())
+            old_nodes = [self.storage.get_node(node_id) for node_id in old_node_ids if self.storage.get_node(node_id)]
+            old_ast['nodes'] = old_nodes
+            if old_nodes:
+                old_ast['edges'] = self.storage.get_edges_for_nodes(old_node_ids)
+
+            # Check for renamed functions BEFORE modifying new_ast
+            renamed_functions = self.update_function_names(old_ast, new_ast)
+
+            # Remove renamed functions from the new AST to avoid duplicates
+            if renamed_functions:
+                renamed_new_ids = set(renamed_functions.values())
+                new_ast['nodes'] = [
+                    node for node in new_ast['nodes']
+                    if node.get('id') not in renamed_new_ids
+                ]
+                # Edges related to renamed functions might need adjustment, but add_or_update_file handles removal
+
+            # Scan for secrets and update AST with secret information
+            new_ast = scan_parse_result_for_secrets(new_ast, filepath)
+
+            # Update the storage, passing the new hash
+            self.storage.add_or_update_file(filepath, new_ast, content_hash=current_hash)
+            logger.info(f"Updated graph for modified file: {filepath}")
+
+        except FileNotFoundError:
+            logger.warning(f"File not found during modification handling: {filepath}. Maybe deleted quickly?")
+        except Exception as e:
+            logger.error(f"Error handling modified file {filepath}: {str(e)}", exc_info=True)
     
     def _handle_file_deleted(self, filepath: str) -> None:
         """
@@ -840,31 +881,37 @@ class DependencyGraphManager:
                 json_storage.graph.add_node(node['id'], **{k: v for k, v in node.items() if k != 'id'})
             
             # Add all edges to the new storage
-            for edge in all_edges:
-                # Ensure any attributes that might be sets are converted to lists
-                for key, value in edge.items():
-                    if isinstance(value, set):
-                        edge[key] = list(value)
-                json_storage.graph.add_edge(
-                    edge['source'], 
-                    edge['target'], 
-                    key=edge.get('type', 'default'),  # Add a key parameter for edge type
-                    **{k: v for k, v in edge.items() if k not in ['source', 'target', 'type']}
-                )
-            
+            for source, target, key, data in self.storage.graph.edges(data=True, keys=True):
+                try:
+                    # Ensure source, target, and key are not duplicated in **data
+                    edge_copy = data.copy()
+                    edge_copy.pop('source', None)
+                    edge_copy.pop('target', None)
+                    edge_copy.pop('key', None)
+
+                    json_storage.graph.add_edge(
+                        source,
+                        target,
+                        key=key,
+                        **edge_copy # Spread remaining attributes
+                    )
+                except Exception as e:
+                    logging.error(f"Failed to add edge during migration: ({source}, {target}, {key}) - {e}")
+                    # Optionally continue or raise depending on desired robustness
+
             # Copy file_nodes mapping using lists instead of sets
             json_storage.file_nodes = {}
             for filepath, node_ids in self.storage.file_nodes.items():
                 json_storage.file_nodes[filepath] = list(node_ids)
             
-            # Save the graph data to disk
-            json_storage.save_graph()
-            
-            # Replace the current storage with the new JSON storage
+            # Save the migrated graph to the JSON file
+            if not json_storage.save_graph():
+                logging.error("Failed to save migrated graph to JSON.")
+                return False # Indicate migration failed
+
+            # Switch the manager's storage to the new JSON storage
             self.storage = json_storage
-            self.is_json_storage = True
-            
-            logger.info(f"Successfully migrated from in-memory storage to JSON storage at {json_path}")
+            logging.info(f"Successfully migrated graph to JSON storage at {json_path}")
             return True
             
         except Exception as e:

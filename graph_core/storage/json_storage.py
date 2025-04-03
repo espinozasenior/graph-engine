@@ -12,6 +12,7 @@ import networkx as nx
 import threading
 import time
 import random
+import hashlib
 from typing import Dict, List, Any, Set, Optional
 
 # Set up logging
@@ -250,117 +251,151 @@ class JSONGraphStorage:
             if lock_acquired:
                 self._release_file_lock()
     
-    def add_or_update_file(self, filepath: str, parse_result: Dict[str, List[Dict[str, Any]]]) -> None:
+    def add_or_update_file(self, filepath: str, parse_result: Dict[str, List[Dict[str, Any]]], content_hash: Optional[str] = None):
         """
-        Add or update nodes and edges for a file in the graph.
-        
+        Add or update nodes and edges from a parse result.
+
         Args:
             filepath: Path of the file being processed
             parse_result: Dictionary containing nodes and edges to add
+            content_hash: Optional hash of the file content.
         """
         with self._lock:
-            # Remove existing nodes for this file
-            self.remove_file(filepath)
-            
+            # Remove existing nodes associated *only* with this file first
+            # (keeps shared nodes)
+            self._remove_file_nodes_and_edges(filepath)
+
             # Track nodes for this file
             self.file_nodes[filepath] = set()
-            
-            # Add nodes
+            file_module_node_id = None
+
+            # --- Pass 1: Find module node ID --- 
+            for node_data in parse_result.get('nodes', []):
+                if node_data.get('type') == 'module' and node_data.get('filepath') == filepath:
+                    file_module_node_id = node_data['id']
+                    break
+
+            # --- Pass 2: Add/Update nodes --- 
             for node_data in parse_result.get('nodes', []):
                 node_id = node_data['id']
-                
-                # If node already exists, update its files list
+                node_attrs = node_data.copy()
+
+                # Add content hash if it's the module node
+                if node_id == file_module_node_id and content_hash:
+                    node_attrs['content_hash'] = content_hash
+
                 if self.graph.has_node(node_id):
                     node = self.graph.nodes[node_id]
-                    # Convert files to a set if it exists
                     files = set(node.get('files', []))
                     files.add(filepath)
-                    node['files'] = list(files)
-                # Otherwise add a new node
+                    node_attrs['files'] = list(files)
+                    # Preserve existing hash if needed
+                    if node_id == file_module_node_id and 'content_hash' not in node_attrs and 'content_hash' in node:
+                         node_attrs['content_hash'] = node['content_hash']
                 else:
-                    node_attrs = node_data.copy()
                     node_attrs['files'] = [filepath]
-                    self.graph.add_node(node_id, **node_attrs)
-                
-                # Track this node for the file
+
+                self.graph.add_node(node_id, **node_attrs)
                 self.file_nodes[filepath].add(node_id)
-            
-            # Process edges and ensure module nodes exist
+
+            if content_hash and not file_module_node_id:
+                 logger.warning(f"No module node found for {filepath} to store content hash.")
+
+            # Process edges (logic remains similar, ensuring nodes exist)
             for edge_data in parse_result.get('edges', []):
                 source = edge_data['source']
                 target = edge_data['target']
-                edge_type = edge_data['type']
-                
-                # If target is a module node and doesn't exist yet, create it
-                if target.startswith('module:') and not self.graph.has_node(target):
-                    self.graph.add_node(target, type='module', name=target.split(':')[1], files=[filepath])
-                    # Add to file nodes tracking if not already there
-                    if target not in self.file_nodes[filepath]:
-                        self.file_nodes[filepath].add(target)
-                
-                # Add necessary attributes for tracking
+                edge_type = edge_data.get('type', 'default') # Use get with default
+
+                # Ensure source/target nodes exist (might have been created above)
+                if not self.graph.has_node(source):
+                     # This might happen if the parse result is inconsistent
+                     logger.warning(f"Edge source node {source} not found for file {filepath}, skipping edge.")
+                     continue
+                if not self.graph.has_node(target):
+                     if target.startswith('module:'): # Auto-create missing module targets
+                         self.graph.add_node(target, type='module', name=target.split(':')[1], files=[filepath])
+                         if filepath in self.file_nodes: self.file_nodes[filepath].add(target)
+                     else:
+                         logger.warning(f"Edge target node {target} not found for file {filepath}, skipping edge.")
+                         continue
+
                 attrs = edge_data.copy()
                 attrs.pop('source', None)
                 attrs.pop('target', None)
-                attrs.pop('type', None)
+                attrs.pop('type', None) # Pop type as it's used as key
                 attrs['file'] = filepath
-                
+
+                # Add edge using type as key
                 self.graph.add_edge(source, target, key=edge_type, **attrs)
-            
+
             # Save the updated graph
             self.save_graph()
-            
+
             logger.info(f"Added/updated file {filepath} with {len(parse_result.get('nodes', []))} "
                         f"nodes and {len(parse_result.get('edges', []))} edges")
-    
+
+    def _remove_file_nodes_and_edges(self, filepath: str):
+        """Internal helper to remove nodes/edges specific to a file."""
+        if filepath not in self.file_nodes:
+            return # Nothing to remove
+
+        file_node_ids = set(self.file_nodes.get(filepath, set())) # Make a copy
+        nodes_to_remove_completely = set()
+
+        # Update or mark nodes for removal
+        for node_id in file_node_ids:
+            if self.graph.has_node(node_id):
+                node = self.graph.nodes[node_id]
+                files = set(node.get('files', []))
+                if filepath in files:
+                    files.remove(filepath)
+                
+                if not files:
+                    # If no other file uses this node, mark for complete removal
+                    nodes_to_remove_completely.add(node_id)
+                else:
+                    # Otherwise, just update the files list
+                    node['files'] = list(files)
+        
+        # Remove edges associated with the file
+        # Need to iterate carefully as graph changes
+        edges_to_remove = []
+        for u, v, k, data in self.graph.edges(data=True, keys=True):
+            if data.get('file') == filepath:
+                edges_to_remove.append((u, v, k))
+            # Also remove edges connected to nodes being completely removed
+            elif u in nodes_to_remove_completely or v in nodes_to_remove_completely:
+                # Avoid duplicates if edge also had the file attribute
+                if data.get('file') != filepath: 
+                    edges_to_remove.append((u, v, k))
+        
+        # Remove identified edges (use set to avoid duplicates)
+        for u, v, k in set(edges_to_remove):
+            if self.graph.has_edge(u, v, key=k):
+                self.graph.remove_edge(u, v, key=k)
+
+        # Remove nodes marked for complete removal
+        for node_id in nodes_to_remove_completely:
+            if self.graph.has_node(node_id):
+                self.graph.remove_node(node_id)
+
+        # Remove file from tracking
+        if filepath in self.file_nodes:
+            del self.file_nodes[filepath]
+
     def remove_file(self, filepath: str) -> None:
         """
-        Remove all nodes and edges associated with the given file.
+        Remove all nodes and edges specific to the given file and save.
         
         Args:
             filepath: Path of the file to remove
         """
         with self._lock:
-            if filepath not in self.file_nodes:
-                logger.info(f"No nodes found for file {filepath}")
-                return
-            
-            # Get list of nodes for this file
-            file_node_ids = set(self.file_nodes[filepath])
-            
-            # For each node associated with this file
-            for node_id in file_node_ids:
-                if self.graph.has_node(node_id):
-                    node = self.graph.nodes[node_id]
-                    
-                    # Update files list
-                    files = set(node.get('files', []))
-                    if filepath in files:
-                        files.remove(filepath)
-                    
-                    if files:
-                        # Node is still used by other files, update its files list
-                        node['files'] = list(files)
-                    else:
-                        # Node is not used by any other file, remove it
-                        self.graph.remove_node(node_id)
-            
-            # Remove edges associated with the file
-            edges_to_remove = []
-            for source, target, key, attrs in self.graph.edges(data=True, keys=True):
-                if attrs.get('file') == filepath:
-                    edges_to_remove.append((source, target, key))
-            
-            for source, target, key in edges_to_remove:
-                self.graph.remove_edge(source, target, key)
-            
-            # Remove file from tracking
-            del self.file_nodes[filepath]
-            
-            # Save the updated graph
+            self._remove_file_nodes_and_edges(filepath)
+            # Save the updated graph after removal
             self.save_graph()
-            
-            logger.info(f"Removed file {filepath} and its associated nodes/edges")
+            logger.info(f"Removed data specific to file {filepath} and saved graph")
     
     def get_all_nodes(self) -> List[Dict[str, Any]]:
         """
@@ -517,4 +552,21 @@ class JSONGraphStorage:
             Number of edges
         """
         with self._lock:
-            return self.graph.number_of_edges() 
+            return self.graph.number_of_edges()
+    
+    def get_file_content_hash(self, filepath: str) -> Optional[str]:
+        """Retrieve the stored content hash for a file."""
+        with self._lock:
+            # Find the primary module node for the file
+            for node_id in self.file_nodes.get(filepath, set()):
+                if self.graph.has_node(node_id):
+                    node = self.graph.nodes[node_id]
+                    # Check if it's the module node and has the hash
+                    if node.get('type') == 'module' and node.get('filepath') == filepath and 'content_hash' in node:
+                        return node['content_hash']
+        return None
+
+# Helper function for hashing (can be placed here or in a utils module)
+def calculate_content_hash(content: bytes) -> str:
+    """Calculates the SHA-256 hash of the given content."""
+    return hashlib.sha256(content).hexdigest() 

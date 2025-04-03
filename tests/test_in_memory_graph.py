@@ -281,19 +281,21 @@ class TestInMemoryGraphStorage(unittest.TestCase):
         self.graph_storage.add_or_update_file(filepath, parse_result)
         
         # Get edges for func1 and func3
-        edges = self.graph_storage.get_edges_for_nodes({'func1', 'func3'})
-        
-        # Should have all edges (each node connects to one other node)
-        self.assertEqual(len(edges), 4)
-        
-        # Check that edge sources and targets are as expected
-        edge_tuples = [(e['source'], e['target']) for e in edges]
-        self.assertIn(('func1', 'func2'), edge_tuples)
-        self.assertIn(('func3', 'func1'), edge_tuples)
-        
-        # Check for incoming edges
-        self.assertIn(('func2', 'func3'), edge_tuples)  # func3 is target
-        self.assertIn(('func3', 'func1'), edge_tuples)  # func1 is target
+        # Use list to ensure consistent order for potential future detailed checks
+        edges = self.graph_storage.get_edges_for_nodes(['func1', 'func3'])
+
+        # Should have 3 unique edges connected to func1 or func3:
+        # (func1 -> func2), (func3 -> func1), (func2 -> func3)
+        self.assertEqual(len(edges), 3)
+
+        # Verify the specific edges (optional, but good practice)
+        edge_tuples = {(e['source'], e['target'], e['type']) for e in edges}
+        expected_tuples = {
+            ('func1', 'func2', 'calls'), 
+            ('func3', 'func1', 'calls'), 
+            ('func2', 'func3', 'calls')
+        }
+        self.assertEqual(edge_tuples, expected_tuples)
     
     def test_handle_empty_parse_result(self):
         """Test handling an empty parse result."""
