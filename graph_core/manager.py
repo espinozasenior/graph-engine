@@ -17,6 +17,8 @@ from graph_core.storage.in_memory import InMemoryGraphStorage
 from graph_core.storage.json_storage import JSONGraphStorage
 from graph_core.dynamic.import_hook import initialize_hook, get_function_calls, FunctionCallEvent
 from graph_core.watchers.rename_detection import detect_renames, RenameEvent, match_functions
+from graph_core.security.secret_scanner import scan_file_for_secrets
+from graph_core.security.graph_integration import scan_parse_result_for_secrets
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -637,6 +639,9 @@ class DependencyGraphManager:
             # Parse the file
             parse_result = parser.parse_file(filepath)
             
+            # Scan for secrets and update parse result with secret information
+            parse_result = scan_parse_result_for_secrets(parse_result, filepath)
+            
             # Update the storage
             self.storage.add_or_update_file(filepath, parse_result)
             logger.info(f"Updated graph for created file: {filepath}")
@@ -672,31 +677,19 @@ class DependencyGraphManager:
             'edges': []
         }
         
-        if filepath in self.storage.file_nodes:
-            # Build the old AST from the storage
-            old_node_ids = self.storage.file_nodes.get(filepath, set())
-            old_nodes = [self.storage.get_node(node_id) for node_id in old_node_ids]
-            old_ast['nodes'] = [node for node in old_nodes if node]
-            
-            # Get edges connected to these nodes
-            old_edges = self.storage.get_edges_for_nodes(old_node_ids)
-            old_ast['edges'] = old_edges
-            
-            # Check for renamed functions
-            renamed_functions = self.update_function_names(old_ast, new_ast)
-            
-            # Remove renamed functions from the new AST to avoid duplicates
-            if renamed_functions:
-                # Create a lookup set of new_ids that correspond to renamed functions
-                renamed_new_ids = set(renamed_functions.values())
-                
-                # Filter out these nodes from the new AST
-                new_ast['nodes'] = [
-                    node for node in new_ast['nodes'] 
-                    if node.get('id') not in renamed_new_ids
-                ]
+        # Get existing nodes for this file
+        for node_id in self.storage.file_nodes.get(filepath, set()):
+            node = self.storage.get_node(node_id)
+            if node:
+                old_ast['nodes'].append(node)
         
-        # Update the storage with the new AST
+        # Check for renamed functions
+        self.update_function_names(old_ast, new_ast)
+        
+        # Scan for secrets and update AST with secret information
+        new_ast = scan_parse_result_for_secrets(new_ast, filepath)
+        
+        # Update the storage
         self.storage.add_or_update_file(filepath, new_ast)
         logger.info(f"Updated graph for modified file: {filepath}")
     

@@ -755,7 +755,7 @@ class TestDependencyGraphManager(unittest.TestCase):
                 self.assertEqual(len(data['nodes']), 0)
                 self.assertEqual(len(data['edges']), 0)
                 self.assertEqual(len(data['file_nodes']), 0)
-    
+
     @patch('graph_core.manager.get_parser_for_file')
     def test_json_storage_with_dynamic_events(self, mock_get_parser):
         """Test that dynamic events update the JSON file."""
@@ -811,46 +811,87 @@ class TestDependencyGraphManager(unittest.TestCase):
                 func_node = next((n for n in data['nodes'] if n['id'] == 'function:test_func'), None)
                 self.assertIsNotNone(func_node)
                 self.assertEqual(func_node.get('dynamic_call_count'), 1)
-    
+
     @patch('graph_core.manager.get_parser_for_file')
-    def test_json_storage_rename_detection(self, mock_get_parser):
-        """Test that rename detection works with JSON storage."""
+    @patch('graph_core.manager.scan_parse_result_for_secrets')
+    def test_json_storage_with_secret_detection(self, mock_scan_result, mock_get_parser):
+        """Test that secret detection works with JSON storage."""
         with tempfile.TemporaryDirectory() as temp_dir:
             json_path = os.path.join(temp_dir, "test_graph.json")
             
             # Set up mock parser
             mock_parser = Mock()
-            mock_parser.parse_file.return_value = {
+            
+            # Initial parse result with no secrets
+            parse_result = {
                 'nodes': [
-                    {'id': 'function:test_func', 'type': 'function', 'name': 'test_func', 'filepath': 'old_file.py'}
+                    {
+                        'id': 'function:get_credentials', 
+                        'type': 'function', 
+                        'name': 'get_credentials',
+                        'start_point': {'row': 1},
+                        'end_point': {'row': 5}
+                    }
                 ],
                 'edges': []
             }
+            
+            # Mock parser to return the parse result
+            mock_parser.parse_file.return_value = parse_result
             mock_get_parser.return_value = mock_parser
+            
+            # Setup the mock scan_parse_result_for_secrets to add secret info
+            mock_scan_result.return_value = {
+                'nodes': [
+                    {
+                        'id': 'function:get_credentials', 
+                        'type': 'function', 
+                        'name': 'get_credentials',
+                        'start_point': {'row': 1},
+                        'end_point': {'row': 5},
+                        'hasSecret': True,
+                        'secretWarnings': [
+                            {
+                                'secretType': 'api_key',
+                                'lineNumber': 3,
+                                'snippet': "api_key = 'REDACTED'",
+                                'confidence': 'high'
+                            }
+                        ]
+                    }
+                ],
+                'edges': []
+            }
             
             # Create manager with JSON storage
             manager = DependencyGraphManager.create_with_json_storage(json_path)
             
-            # Add a file
-            manager.on_file_event('created', 'old_file.py')
+            # Process a file
+            manager.on_file_event('created', 'test_file.py')
             
-            # Update node filepath
-            manager.update_node_filepath('old_file.py', 'new_file.py')
+            # Verify scan_parse_result_for_secrets was called
+            mock_scan_result.assert_called_once()
             
-            # Verify the update was saved
+            # Verify the graph was updated with secret information
             with open(json_path, 'r') as f:
                 data = json.load(f)
                 
                 # Find the function node
-                func_node = next((n for n in data['nodes'] if n['id'] == 'function:test_func'), None)
+                func_node = next((n for n in data['nodes'] if n['id'] == 'function:get_credentials'), None)
                 self.assertIsNotNone(func_node)
-                self.assertEqual(func_node.get('filepath'), 'new_file.py')
-                self.assertIn('rename_history', func_node)
-                self.assertIn('old_file.py', func_node['rename_history'])
                 
-                # Check file_nodes mapping
-                self.assertIn('new_file.py', data['file_nodes'])
-                self.assertNotIn('old_file.py', data['file_nodes'])
+                # Check that hasSecret is set to True
+                self.assertTrue(func_node.get('hasSecret', False))
+                
+                # Check that secretWarnings is present and contains the redacted snippet
+                self.assertIn('secretWarnings', func_node)
+                self.assertEqual(len(func_node['secretWarnings']), 1)
+                
+                warning = func_node['secretWarnings'][0]
+                self.assertEqual(warning['secretType'], 'api_key')
+                self.assertEqual(warning['lineNumber'], 3)
+                self.assertIn('REDACTED', warning['snippet'])
+                self.assertEqual(warning['confidence'], 'high')
 
     @patch('graph_core.manager.get_parser_for_file')
     def test_migration_to_json_storage(self, mock_get_parser):
@@ -990,6 +1031,46 @@ class TestDependencyGraphManager(unittest.TestCase):
         # Attempt migration - should return False
         result = manager.migrate_to_json_storage(invalid_path)
         self.assertFalse(result)
+
+    @patch('graph_core.manager.get_parser_for_file')
+    def test_json_storage_rename_detection(self, mock_get_parser):
+        """Test that rename detection works with JSON storage."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            json_path = os.path.join(temp_dir, "test_graph.json")
+            
+            # Set up mock parser
+            mock_parser = Mock()
+            mock_parser.parse_file.return_value = {
+                'nodes': [
+                    {'id': 'function:test_func', 'type': 'function', 'name': 'test_func', 'filepath': 'old_file.py'}
+                ],
+                'edges': []
+            }
+            mock_get_parser.return_value = mock_parser
+            
+            # Create manager with JSON storage
+            manager = DependencyGraphManager.create_with_json_storage(json_path)
+            
+            # Add a file
+            manager.on_file_event('created', 'old_file.py')
+            
+            # Update node filepath
+            manager.update_node_filepath('old_file.py', 'new_file.py')
+            
+            # Verify the update was saved
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+                
+                # Find the function node
+                func_node = next((n for n in data['nodes'] if n['id'] == 'function:test_func'), None)
+                self.assertIsNotNone(func_node)
+                self.assertEqual(func_node.get('filepath'), 'new_file.py')
+                self.assertIn('rename_history', func_node)
+                self.assertIn('old_file.py', func_node['rename_history'])
+                
+                # Check file_nodes mapping
+                self.assertIn('new_file.py', data['file_nodes'])
+                self.assertNotIn('old_file.py', data['file_nodes'])
 
 
 if __name__ == '__main__':
