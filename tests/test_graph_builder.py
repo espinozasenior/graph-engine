@@ -12,7 +12,7 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from graph_core.analyzer import get_parser_for_file
-from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.storage.in_memory import InMemoryGraphStorage
 from graph_core.manager import DependencyGraphManager
 
 

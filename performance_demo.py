@@ -13,7 +13,7 @@ import shutil
 import timeit
 from pathlib import Path
 
-from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.storage.in_memory import InMemoryGraphStorage
 from graph_core.manager import DependencyGraphManager
 
 # Configure logging

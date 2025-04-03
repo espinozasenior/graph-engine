@@ -9,11 +9,12 @@ import os
 import logging
 import threading
 import time
-from typing import List, Optional, Dict, Any, Callable, Set, Tuple
+from typing import List, Optional, Dict, Any, Callable, Set, Tuple, Union
 from collections import deque
 
 from graph_core.analyzer import get_parser_for_file
-from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.storage.in_memory import InMemoryGraphStorage
+from graph_core.storage.json_storage import JSONGraphStorage
 from graph_core.dynamic.import_hook import initialize_hook, get_function_calls, FunctionCallEvent
 from graph_core.watchers.rename_detection import detect_renames, RenameEvent, match_functions
 
@@ -35,12 +36,12 @@ class DependencyGraphManager:
     # How long (in seconds) to keep track of deleted files for rename detection
     RENAME_DETECTION_WINDOW = 2.0
     
-    def __init__(self, storage: InMemoryGraphStorage):
+    def __init__(self, storage: Union[InMemoryGraphStorage, JSONGraphStorage]):
         """
         Initialize the dependency graph manager.
         
         Args:
-            storage: An instance of InMemoryGraphStorage to store the graph data
+            storage: An instance of InMemoryGraphStorage or JSONGraphStorage to store the graph data
         """
         self.storage = storage
         # Dynamic analysis event handlers

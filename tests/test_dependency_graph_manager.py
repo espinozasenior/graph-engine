@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import Mock, patch, MagicMock, call
 
 from graph_core.manager import DependencyGraphManager
-from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.storage.in_memory import InMemoryGraphStorage
 from graph_core.dynamic.import_hook import FunctionCallEvent
 
 

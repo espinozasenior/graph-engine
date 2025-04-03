@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from graph_core.watchers.rename_detection import match_functions
 from graph_core.manager import DependencyGraphManager
-from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.storage.in_memory import InMemoryGraphStorage
 
 
 # Test data: Function with original name

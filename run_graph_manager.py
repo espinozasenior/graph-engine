@@ -21,7 +21,7 @@ from typing import Callable, Optional
 
 import uvicorn
 from graph_core import DependencyGraphManager, create_app
-from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.storage.in_memory import InMemoryGraphStorage
 from graph_core.watchers.file_watcher import start_file_watcher
 
 # Set up logging

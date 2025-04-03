@@ -10,7 +10,7 @@ import sys
 import time
 import logging
 
-from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.storage.in_memory import InMemoryGraphStorage
 from graph_core.manager import DependencyGraphManager
 from graph_core.dynamic.import_hook import initialize_hook, get_function_calls, clear_call_queue, get_monitored_files
 

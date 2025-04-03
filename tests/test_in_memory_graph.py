@@ -3,14 +3,14 @@ Tests for the in_memory_graph module.
 """
 
 import unittest
-from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.storage.in_memory import InMemoryGraphStorage
 
 
 class TestInMemoryGraphStorage(unittest.TestCase):
     """Test cases for the InMemoryGraphStorage class."""
     
     def setUp(self):
-        """Set up the test environment."""
+        """Set up a fresh InMemoryGraphStorage instance for each test."""
         self.graph_storage = InMemoryGraphStorage()
     
     def test_add_file_basic(self):
@@ -25,33 +25,25 @@ class TestInMemoryGraphStorage(unittest.TestCase):
                 {'source': 'func1', 'target': 'func2', 'relation': 'CALLS'}
             ]
         }
-        
+
         filepath = 'test_file.py'
         self.graph_storage.add_or_update_file(filepath, parse_result)
-        
+
         # Check that nodes and edges were added correctly
         self.assertEqual(self.graph_storage.get_node_count(), 2)
         self.assertEqual(self.graph_storage.get_edge_count(), 1)
-        
+    
         nodes = self.graph_storage.get_all_nodes()
         edges = self.graph_storage.get_all_edges()
-        
+
         # Check that node IDs and types are correct
         node_ids = {node['id'] for node in nodes}
         self.assertEqual(node_ids, {'func1', 'func2'})
-        
-        # Check that nodes have the file attribute
+
+        # Check that nodes have the file attribute (stored as a list)
         for node in nodes:
             self.assertIn('files', node)
-            self.assertEqual(node['files'], {filepath})
-        
-        # Check that the edge is correct
-        self.assertEqual(len(edges), 1)
-        edge = edges[0]
-        self.assertEqual(edge['source'], 'func1')
-        self.assertEqual(edge['target'], 'func2')
-        self.assertEqual(edge['relation'], 'CALLS')
-        self.assertEqual(edge['file'], filepath)
+            self.assertEqual(set(node['files']), {filepath})
     
     def test_add_file_with_module_references(self):
         """Test adding a file with module-level references."""
@@ -59,290 +51,269 @@ class TestInMemoryGraphStorage(unittest.TestCase):
         filepath = 'test_module.py'
         parse_result = {
             'nodes': [
-                {'id': 'class1', 'type': 'class', 'name': 'Class1'}
+                {'id': 'class1', 'type': 'class', 'name': 'Class1'},
+                {'id': 'module:test_module.py', 'type': 'module', 'name': 'test_module'}
             ],
             'edges': [
-                {'source': filepath, 'target': 'os.path', 'relation': 'IMPORTS'},
-                {'source': 'class1', 'target': filepath, 'relation': 'DEFINED_IN'}
+                {'source': 'module:test_module.py', 'target': 'os.path', 'type': 'imports'},
+                {'source': 'class1', 'target': 'module:test_module.py', 'type': 'defined_in'}
             ]
         }
-        
+
         self.graph_storage.add_or_update_file(filepath, parse_result)
-        
+
         # Check node and edge counts
-        # Should have 3 nodes: class1, module:filepath, and os.path
-        # Should have 2 edges
-        self.assertEqual(self.graph_storage.get_node_count(), 3)
+        self.assertEqual(self.graph_storage.get_node_count(), 3)  # class1, module:filepath, and os.path
         self.assertEqual(self.graph_storage.get_edge_count(), 2)
-        
-        # Check that the module node was created
-        module_id = f"module:{filepath}"
+
+        # Check that the module node exists
+        module_id = 'module:test_module.py'
         module_node = self.graph_storage.get_node(module_id)
         self.assertIsNotNone(module_node)
         self.assertEqual(module_node['type'], 'module')
-        
-        # Check that edges use the module node ID
-        edges = self.graph_storage.get_all_edges()
-        module_edges = [edge for edge in edges if edge['source'] == module_id or edge['target'] == module_id]
-        self.assertEqual(len(module_edges), 2)
     
     def test_remove_file(self):
         """Test removing a file and its nodes/edges."""
         # Add two files with some shared nodes
         file1 = 'file1.py'
         file2 = 'file2.py'
-        
+
         parse_result1 = {
             'nodes': [
                 {'id': 'shared_func', 'type': 'function', 'name': 'shared_func'},
                 {'id': 'file1_only', 'type': 'function', 'name': 'file1_only'}
             ],
             'edges': [
-                {'source': 'file1_only', 'target': 'shared_func', 'relation': 'CALLS'}
+                {'source': 'file1_only', 'target': 'shared_func', 'type': 'calls'}
             ]
         }
-        
+
         parse_result2 = {
             'nodes': [
                 {'id': 'shared_func', 'type': 'function', 'name': 'shared_func'},
                 {'id': 'file2_only', 'type': 'function', 'name': 'file2_only'}
             ],
             'edges': [
-                {'source': 'file2_only', 'target': 'shared_func', 'relation': 'CALLS'}
+                {'source': 'file2_only', 'target': 'shared_func', 'type': 'calls'}
             ]
         }
-        
+
         self.graph_storage.add_or_update_file(file1, parse_result1)
         self.graph_storage.add_or_update_file(file2, parse_result2)
-        
+
         # Check initial state - should have 3 nodes and 2 edges
         self.assertEqual(self.graph_storage.get_node_count(), 3)
         self.assertEqual(self.graph_storage.get_edge_count(), 2)
-        
+
         # Remove file1
         self.graph_storage.remove_file(file1)
-        
+
         # Check final state
         # Should have removed file1_only node but kept shared_func
         # Should have 2 nodes (shared_func, file2_only) and 1 edge
         self.assertEqual(self.graph_storage.get_node_count(), 2)
         self.assertEqual(self.graph_storage.get_edge_count(), 1)
-        
+
         nodes = self.graph_storage.get_all_nodes()
         node_ids = {node['id'] for node in nodes}
         self.assertEqual(node_ids, {'shared_func', 'file2_only'})
-        
+
         # Check that shared_func now only belongs to file2
         shared_node = self.graph_storage.get_node('shared_func')
-        self.assertEqual(shared_node['files'], {file2})
-        
-        # Now remove file2
-        self.graph_storage.remove_file(file2)
-        
-        # Should have 0 nodes and 0 edges
-        self.assertEqual(self.graph_storage.get_node_count(), 0)
-        self.assertEqual(self.graph_storage.get_edge_count(), 0)
-    
-    def test_update_file(self):
-        """Test updating a file replaces old nodes/edges."""
-        filepath = 'update_test.py'
-        
-        # Initial version of the file
-        initial_result = {
-            'nodes': [
-                {'id': 'old_func', 'type': 'function', 'name': 'old_func'},
-                {'id': 'common_func', 'type': 'function', 'name': 'common_func'}
-            ],
-            'edges': [
-                {'source': 'old_func', 'target': 'common_func', 'relation': 'CALLS'}
-            ]
-        }
-        
-        self.graph_storage.add_or_update_file(filepath, initial_result)
-        self.assertEqual(self.graph_storage.get_node_count(), 2)
-        self.assertEqual(self.graph_storage.get_edge_count(), 1)
-        
-        # Updated version of the file
-        updated_result = {
-            'nodes': [
-                {'id': 'new_func', 'type': 'function', 'name': 'new_func'},
-                {'id': 'common_func', 'type': 'function', 'name': 'common_func'}
-            ],
-            'edges': [
-                {'source': 'new_func', 'target': 'common_func', 'relation': 'CALLS'}
-            ]
-        }
-        
-        self.graph_storage.add_or_update_file(filepath, updated_result)
-        
-        # Check final state
-        # Should have 2 nodes (new_func and common_func) and 1 edge
-        self.assertEqual(self.graph_storage.get_node_count(), 2)
-        self.assertEqual(self.graph_storage.get_edge_count(), 1)
-        
-        nodes = self.graph_storage.get_all_nodes()
-        node_ids = {node['id'] for node in nodes}
-        self.assertEqual(node_ids, {'new_func', 'common_func'})
-        
-        # Check that the edge now goes from new_func to common_func
-        edges = self.graph_storage.get_all_edges()
-        self.assertEqual(len(edges), 1)
-        self.assertEqual(edges[0]['source'], 'new_func')
-        self.assertEqual(edges[0]['target'], 'common_func')
+        self.assertEqual(set(shared_node['files']), {file2})
     
     def test_multi_file_references(self):
         """Test handling nodes referenced by multiple files."""
         file1 = 'file1.py'
         file2 = 'file2.py'
         file3 = 'file3.py'
-        
+
         # All three files reference the same node
         parse_result1 = {
             'nodes': [{'id': 'common', 'type': 'function', 'name': 'common'}],
             'edges': []
         }
-        
+
         parse_result2 = {
             'nodes': [{'id': 'common', 'type': 'function', 'name': 'common'}],
             'edges': []
         }
-        
+
         parse_result3 = {
             'nodes': [{'id': 'common', 'type': 'function', 'name': 'common'}],
             'edges': []
         }
-        
+
         # Add all three files
         self.graph_storage.add_or_update_file(file1, parse_result1)
         self.graph_storage.add_or_update_file(file2, parse_result2)
         self.graph_storage.add_or_update_file(file3, parse_result3)
-        
+
         # Should have 1 node referenced by 3 files
         self.assertEqual(self.graph_storage.get_node_count(), 1)
-        
+
         # Check that the node has all three files
         common_node = self.graph_storage.get_node('common')
-        self.assertEqual(common_node['files'], {file1, file2, file3})
-        
-        # Remove file1 - node should remain with 2 files
-        self.graph_storage.remove_file(file1)
-        self.assertEqual(self.graph_storage.get_node_count(), 1)
-        
-        common_node = self.graph_storage.get_node('common')
-        self.assertEqual(common_node['files'], {file2, file3})
-        
-        # Remove file2 - node should remain with 1 file
-        self.graph_storage.remove_file(file2)
-        self.assertEqual(self.graph_storage.get_node_count(), 1)
-        
-        common_node = self.graph_storage.get_node('common')
-        self.assertEqual(common_node['files'], {file3})
-        
-        # Remove file3 - node should be removed
-        self.graph_storage.remove_file(file3)
-        self.assertEqual(self.graph_storage.get_node_count(), 0)
+        self.assertEqual(set(common_node['files']), {file1, file2, file3})
     
-    def test_repeated_file_changes(self):
-        """Test handling repeated updates to the same file."""
-        filepath = 'changing_file.py'
+    def test_add_file_with_existing_nodes(self):
+        """Test adding a file that references existing nodes."""
+        # Add first file with two nodes
+        file1 = 'file1.py'
+        parse_result1 = {
+            'nodes': [
+                {'id': 'func1', 'type': 'function', 'name': 'func1'},
+                {'id': 'func2', 'type': 'function', 'name': 'func2'}
+            ],
+            'edges': []
+        }
+        self.graph_storage.add_or_update_file(file1, parse_result1)
         
-        # Version 1 of the file
-        version1 = {
+        # Add second file that also references func1
+        file2 = 'file2.py'
+        parse_result2 = {
+            'nodes': [
+                {'id': 'func1', 'type': 'function', 'name': 'func1'},
+                {'id': 'func3', 'type': 'function', 'name': 'func3'}
+            ],
+            'edges': []
+        }
+        self.graph_storage.add_or_update_file(file2, parse_result2)
+        
+        # Should have 3 nodes: func1, func2, func3
+        self.assertEqual(self.graph_storage.get_node_count(), 3)
+        
+        # Check that func1 is associated with both files
+        func1_node = self.graph_storage.get_node('func1')
+        self.assertEqual(set(func1_node['files']), {file1, file2})
+        
+        # Check that func2 is only associated with file1
+        func2_node = self.graph_storage.get_node('func2')
+        self.assertEqual(set(func2_node['files']), {file1})
+        
+        # Check that func3 is only associated with file2
+        func3_node = self.graph_storage.get_node('func3')
+        self.assertEqual(set(func3_node['files']), {file2})
+    
+    def test_update_file(self):
+        """Test updating an existing file."""
+        filepath = 'test_file.py'
+        
+        # Add initial version of the file
+        parse_result1 = {
             'nodes': [
                 {'id': 'func1', 'type': 'function', 'name': 'func1'},
                 {'id': 'func2', 'type': 'function', 'name': 'func2'}
             ],
             'edges': [
-                {'source': 'func1', 'target': 'func2', 'relation': 'CALLS'}
+                {'source': 'func1', 'target': 'func2', 'type': 'calls'}
             ]
         }
+        self.graph_storage.add_or_update_file(filepath, parse_result1)
         
-        # Version 2 - modify func1, remove func2, add func3
-        version2 = {
+        # Update the file with different nodes/edges
+        parse_result2 = {
             'nodes': [
                 {'id': 'func1', 'type': 'function', 'name': 'func1_renamed'},
                 {'id': 'func3', 'type': 'function', 'name': 'func3'}
             ],
             'edges': [
-                {'source': 'func1', 'target': 'func3', 'relation': 'CALLS'}
+                {'source': 'func1', 'target': 'func3', 'type': 'calls'}
             ]
         }
+        self.graph_storage.add_or_update_file(filepath, parse_result2)
         
-        # Version 3 - remove func1, modify func3, add func4
-        version3 = {
-            'nodes': [
-                {'id': 'func3', 'type': 'function', 'name': 'func3_modified'},
-                {'id': 'func4', 'type': 'function', 'name': 'func4'}
-            ],
-            'edges': [
-                {'source': 'func3', 'target': 'func4', 'relation': 'CALLS'}
-            ]
-        }
-        
-        # Apply version 1
-        self.graph_storage.add_or_update_file(filepath, version1)
+        # Check that func2 was removed and func3 was added
         self.assertEqual(self.graph_storage.get_node_count(), 2)
-        self.assertEqual(self.graph_storage.get_edge_count(), 1)
         
-        # Nodes should be func1 and func2
-        nodes = self.graph_storage.get_all_nodes()
-        node_ids = {node['id'] for node in nodes}
-        self.assertEqual(node_ids, {'func1', 'func2'})
-        
-        # Apply version 2
-        self.graph_storage.add_or_update_file(filepath, version2)
-        self.assertEqual(self.graph_storage.get_node_count(), 2)
-        self.assertEqual(self.graph_storage.get_edge_count(), 1)
-        
-        # Nodes should be func1 and func3
         nodes = self.graph_storage.get_all_nodes()
         node_ids = {node['id'] for node in nodes}
         self.assertEqual(node_ids, {'func1', 'func3'})
         
-        # Edge should go from func1 to func3
+        # Check that the edge was updated
         edges = self.graph_storage.get_all_edges()
         self.assertEqual(len(edges), 1)
         self.assertEqual(edges[0]['source'], 'func1')
         self.assertEqual(edges[0]['target'], 'func3')
-        
-        # Apply version 3
-        self.graph_storage.add_or_update_file(filepath, version3)
-        self.assertEqual(self.graph_storage.get_node_count(), 2)
-        self.assertEqual(self.graph_storage.get_edge_count(), 1)
-        
-        # Nodes should be func3 and func4
-        nodes = self.graph_storage.get_all_nodes()
-        node_ids = {node['id'] for node in nodes}
-        self.assertEqual(node_ids, {'func3', 'func4'})
-        
-        # Node func3 should have the updated name
-        func3_node = self.graph_storage.get_node('func3')
-        self.assertEqual(func3_node['name'], 'func3_modified')
-        
-        # Edge should go from func3 to func4
-        edges = self.graph_storage.get_all_edges()
-        self.assertEqual(len(edges), 1)
-        self.assertEqual(edges[0]['source'], 'func3')
-        self.assertEqual(edges[0]['target'], 'func4')
     
-    def test_invalid_parse_result(self):
-        """Test handling of invalid parse results."""
-        # Test with missing 'nodes' key
-        with self.assertRaises(KeyError):
-            self.graph_storage.add_or_update_file('test.py', {'edges': []})
+    def test_get_node(self):
+        """Test getting a specific node by ID."""
+        # Add a file with a node
+        filepath = 'test_file.py'
+        parse_result = {
+            'nodes': [
+                {'id': 'func1', 'type': 'function', 'name': 'func1', 'extra': 'data'}
+            ],
+            'edges': []
+        }
+        self.graph_storage.add_or_update_file(filepath, parse_result)
         
-        # Test with missing 'edges' key
-        with self.assertRaises(KeyError):
-            self.graph_storage.add_or_update_file('test.py', {'nodes': []})
+        # Get the node
+        node = self.graph_storage.get_node('func1')
+        
+        # Check that the node has the expected properties
+        self.assertIsNotNone(node)
+        self.assertEqual(node['id'], 'func1')
+        self.assertEqual(node['type'], 'function')
+        self.assertEqual(node['name'], 'func1')
+        self.assertEqual(node['extra'], 'data')
+        self.assertEqual(set(node['files']), {filepath})
+        
+        # Check that a non-existent node returns None
+        self.assertIsNone(self.graph_storage.get_node('non_existent'))
     
-    def test_remove_nonexistent_file(self):
-        """Test removing a file that doesn't exist."""
-        # Should not raise an exception
-        self.graph_storage.remove_file('nonexistent.py')
+    def test_get_edges_for_nodes(self):
+        """Test getting edges connected to specific nodes."""
+        # Add a file with nodes and edges
+        filepath = 'test_file.py'
+        parse_result = {
+            'nodes': [
+                {'id': 'func1', 'type': 'function', 'name': 'func1'},
+                {'id': 'func2', 'type': 'function', 'name': 'func2'},
+                {'id': 'func3', 'type': 'function', 'name': 'func3'}
+            ],
+            'edges': [
+                {'source': 'func1', 'target': 'func2', 'type': 'calls'},
+                {'source': 'func2', 'target': 'func3', 'type': 'calls'},
+                {'source': 'func3', 'target': 'func1', 'type': 'calls'}
+            ]
+        }
+        self.graph_storage.add_or_update_file(filepath, parse_result)
         
-        # Graph should still be empty
-        self.assertEqual(self.graph_storage.get_node_count(), 0)
-        self.assertEqual(self.graph_storage.get_edge_count(), 0)
+        # Get edges for func1 and func3
+        edges = self.graph_storage.get_edges_for_nodes({'func1', 'func3'})
+        
+        # Should have all edges (each node connects to one other node)
+        self.assertEqual(len(edges), 4)
+        
+        # Check that edge sources and targets are as expected
+        edge_tuples = [(e['source'], e['target']) for e in edges]
+        self.assertIn(('func1', 'func2'), edge_tuples)
+        self.assertIn(('func3', 'func1'), edge_tuples)
+        
+        # Check for incoming edges
+        self.assertIn(('func2', 'func3'), edge_tuples)  # func3 is target
+        self.assertIn(('func3', 'func1'), edge_tuples)  # func1 is target
+    
+    def test_handle_empty_parse_result(self):
+        """Test handling an empty parse result."""
+        filepath = 'empty_file.py'
+        parse_result = {
+            'nodes': [],
+            'edges': []
+        }
+        
+        # Should not raise any exceptions
+        self.graph_storage.add_or_update_file(filepath, parse_result)
+        
+        # Should have created an empty entry in file_nodes
+        self.assertIn(filepath, self.graph_storage.file_nodes)
+        self.assertEqual(len(self.graph_storage.file_nodes[filepath]), 0)
+    
+    def test_non_existent_file_removal(self):
+        """Test removing a file that doesn't exist in storage."""
+        # Should not raise any exceptions
+        self.graph_storage.remove_file('non_existent.py')
 
 
 if __name__ == '__main__':

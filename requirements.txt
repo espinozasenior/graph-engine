@@ -4,6 +4,7 @@ uvicorn>=0.15.0
 pydantic>=1.8.0
 watchfiles>=0.18.0
 tree-sitter==0.20.1
+gremlinpython==3.6.3
 
 # Testing
 pytest>=6.0.0

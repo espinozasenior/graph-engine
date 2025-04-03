@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
-from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.storage.in_memory import InMemoryGraphStorage
 from graph_core.manager import DependencyGraphManager
 from graph_core.watchers.file_watcher import start_file_watcher
 from graph_core.api import create_app

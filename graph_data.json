@@ -1,0 +1,864 @@
+{
+  "nodes": [
+    {
+      "id": "module:nested_example.py",
+      "type": "module",
+      "name": "nested_example.py",
+      "filepath": "src\\nested_example.py",
+      "start_line": 1,
+      "end_line": 115,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:outer_function",
+      "type": "function",
+      "name": "outer_function",
+      "filepath": "src\\nested_example.py",
+      "start_line": 11,
+      "end_line": 12,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:inner_function",
+      "type": "function",
+      "name": "inner_function",
+      "filepath": "src\\nested_example.py",
+      "start_line": 20,
+      "end_line": 21,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:__init__",
+      "type": "function",
+      "name": "__init__",
+      "filepath": "src\\nested_example.py",
+      "start_line": 42,
+      "end_line": 43,
+      "files": [
+        "src\\nested_example.py",
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:greet",
+      "type": "function",
+      "name": "greet",
+      "filepath": "src\\nested_example.py",
+      "start_line": 54,
+      "end_line": 55,
+      "files": [
+        "src\\nested_example.py",
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:generate_greeting",
+      "type": "function",
+      "name": "generate_greeting",
+      "filepath": "src\\nested_example.py",
+      "start_line": 58,
+      "end_line": 59,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:celebrate_birthday",
+      "type": "function",
+      "name": "celebrate_birthday",
+      "filepath": "src\\nested_example.py",
+      "start_line": 73,
+      "end_line": 74,
+      "files": [
+        "src\\nested_example.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:create_counter",
+      "type": "function",
+      "name": "create_counter",
+      "filepath": "src\\nested_example.py",
+      "start_line": 83,
+      "end_line": 84,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:increment",
+      "type": "function",
+      "name": "increment",
+      "filepath": "src\\nested_example.py",
+      "start_line": 92,
+      "end_line": 93,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:run_async_demo",
+      "type": "function",
+      "name": "run_async_demo",
+      "filepath": "src\\nested_example.py",
+      "start_line": 106,
+      "end_line": 107,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "class:methods",
+      "type": "class",
+      "name": "methods",
+      "filepath": "src\\nested_example.py",
+      "start_line": 5,
+      "end_line": 6,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "class:Person",
+      "type": "class",
+      "name": "Person",
+      "filepath": "src\\nested_example.py",
+      "start_line": 37,
+      "end_line": 38,
+      "files": [
+        "src\\nested_example.py",
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "class:with",
+      "type": "class",
+      "name": "with",
+      "filepath": "src\\nested_example.py",
+      "start_line": 39,
+      "end_line": 40,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "module:sample.js",
+      "type": "module",
+      "name": "sample.js",
+      "filepath": "src\\sample.js",
+      "start_line": 1,
+      "end_line": 130,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "function:readJsonFile",
+      "type": "function",
+      "name": "readJsonFile",
+      "filepath": "src\\sample.js",
+      "start_line": 45,
+      "end_line": 46,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "function:processAnimals",
+      "type": "function",
+      "name": "processAnimals",
+      "filepath": "src\\sample.js",
+      "start_line": 68,
+      "end_line": 69,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "function:call",
+      "type": "function",
+      "name": "call",
+      "filepath": "src\\sample.js",
+      "start_line": 113,
+      "end_line": 114,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "class:Animal",
+      "type": "class",
+      "name": "Animal",
+      "filepath": "src\\sample.js",
+      "start_line": 13,
+      "end_line": 14,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "class:Dog",
+      "type": "class",
+      "name": "Dog",
+      "filepath": "src\\sample.js",
+      "start_line": 29,
+      "end_line": 30,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "module:sample.py",
+      "type": "module",
+      "name": "sample.py",
+      "filepath": "src\\sample.py",
+      "start_line": 1,
+      "end_line": 122,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:get_name",
+      "type": "function",
+      "name": "get_name",
+      "filepath": "src\\sample.py",
+      "start_line": 20,
+      "end_line": 21,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:calculate_future_date",
+      "type": "function",
+      "name": "calculate_future_date",
+      "filepath": "src\\sample.py",
+      "start_line": 43,
+      "end_line": 44,
+      "files": [
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:add",
+      "type": "function",
+      "name": "add",
+      "filepath": "src\\sample.py",
+      "start_line": 57,
+      "end_line": 58,
+      "files": [
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:subtract",
+      "type": "function",
+      "name": "subtract",
+      "filepath": "src\\sample.py",
+      "start_line": 62,
+      "end_line": 63,
+      "files": [
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:use_imported_functions",
+      "type": "function",
+      "name": "use_imported_functions",
+      "filepath": "src\\sample.py",
+      "start_line": 68,
+      "end_line": 69,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:main",
+      "type": "function",
+      "name": "main",
+      "filepath": "src\\sample.py",
+      "start_line": 91,
+      "end_line": 92,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "class:BaseClass",
+      "type": "class",
+      "name": "BaseClass",
+      "filepath": "src\\sample.py",
+      "start_line": 13,
+      "end_line": 14,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "class:to",
+      "type": "class",
+      "name": "to",
+      "filepath": "src\\sample.py",
+      "start_line": 14,
+      "end_line": 15,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "class:representing",
+      "type": "class",
+      "name": "representing",
+      "filepath": "src\\sample.py",
+      "start_line": 26,
+      "end_line": 27,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "class:Calculator",
+      "type": "class",
+      "name": "Calculator",
+      "filepath": "src\\sample.py",
+      "start_line": 50,
+      "end_line": 51,
+      "files": [
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "module:sample.tsx",
+      "type": "module",
+      "name": "sample.tsx",
+      "filepath": "src\\sample.tsx",
+      "start_line": 1,
+      "end_line": 110,
+      "files": [
+        "src\\sample.tsx"
+      ]
+    },
+    {
+      "id": "function:calculateAge",
+      "type": "function",
+      "name": "calculateAge",
+      "filepath": "src\\sample.tsx",
+      "start_line": 56,
+      "end_line": 57,
+      "files": [
+        "src\\sample.tsx"
+      ]
+    },
+    {
+      "id": "class:abstract",
+      "type": "class",
+      "name": "abstract",
+      "filepath": "src\\sample.tsx",
+      "start_line": 20,
+      "end_line": 21,
+      "files": [
+        "src\\sample.tsx"
+      ]
+    },
+    {
+      "id": "class:BaseEntity",
+      "type": "class",
+      "name": "BaseEntity",
+      "filepath": "src\\sample.tsx",
+      "start_line": 21,
+      "end_line": 22,
+      "files": [
+        "src\\sample.tsx"
+      ]
+    },
+    {
+      "id": "class:User",
+      "type": "class",
+      "name": "User",
+      "filepath": "src\\sample.tsx",
+      "start_line": 36,
+      "end_line": 37,
+      "files": [
+        "src\\sample.tsx"
+      ]
+    },
+    {
+      "id": "module:sample_module.py",
+      "type": "module",
+      "name": "sample_module.py",
+      "filepath": "src\\sample_module.py",
+      "start_line": 1,
+      "end_line": 83,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    },
+    {
+      "id": "function:hello",
+      "type": "function",
+      "name": "hello",
+      "filepath": "src\\sample_module.py",
+      "start_line": 9,
+      "end_line": 10,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    },
+    {
+      "id": "function:greeting",
+      "type": "function",
+      "name": "greeting",
+      "filepath": "src\\sample_module.py",
+      "start_line": 14,
+      "end_line": 15,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    },
+    {
+      "id": "function:calculate_birthday",
+      "type": "function",
+      "name": "calculate_birthday",
+      "filepath": "src\\sample_module.py",
+      "start_line": 54,
+      "end_line": 55,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    },
+    {
+      "id": "function:async_function",
+      "type": "function",
+      "name": "async_function",
+      "filepath": "src\\sample_module.py",
+      "start_line": 59,
+      "end_line": 60,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    },
+    {
+      "id": "function:math_operations",
+      "type": "function",
+      "name": "math_operations",
+      "filepath": "src\\sample_module.py",
+      "start_line": 63,
+      "end_line": 64,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "module:nested_example.py",
+      "target": "function:outer_function",
+      "type": "contains",
+      "id": "contains:b9e31de3-1a3c-4a5c-9285-c6a6ee856bcd",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:inner_function",
+      "type": "contains",
+      "id": "contains:b4c71667-c808-49ee-801b-1d5b50b4dde5",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:__init__",
+      "type": "contains",
+      "id": "contains:07ce94a1-11f3-41a7-940f-13c964bfd82d",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:greet",
+      "type": "contains",
+      "id": "contains:ff433e98-5f26-454e-8c98-f7deee90d6b7",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:generate_greeting",
+      "type": "contains",
+      "id": "contains:1df49aff-910d-4f21-ae20-27a7e059639b",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:celebrate_birthday",
+      "type": "contains",
+      "id": "contains:56dde55d-6e8b-4f38-892e-f88043f8a726",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:create_counter",
+      "type": "contains",
+      "id": "contains:b5368fc6-6b07-4595-b530-2d9e14d5867f",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:increment",
+      "type": "contains",
+      "id": "contains:f2665f00-a92a-45d3-be26-00f0de120a10",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:run_async_demo",
+      "type": "contains",
+      "id": "contains:57360f46-b2da-4f9a-991e-b3c070c3a508",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "class:methods",
+      "type": "contains",
+      "id": "contains:a0db88de-394b-463a-b8b6-3c31cb1dca8d",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "class:Person",
+      "type": "contains",
+      "id": "contains:f4fc6f42-a121-450e-b6a0-59cb86e6cc85",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "class:with",
+      "type": "contains",
+      "id": "contains:621f3ba5-063a-4fc7-966f-5a88e428426d",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:sample.js",
+      "target": "function:readJsonFile",
+      "type": "contains",
+      "id": "contains:87ad81a3-9938-4f79-80b3-f30970f9ae1e",
+      "file": "src\\sample.js"
+    },
+    {
+      "source": "module:sample.js",
+      "target": "function:processAnimals",
+      "type": "contains",
+      "id": "contains:e9e1ba0c-feb8-4f2e-87b8-96aa36b2625b",
+      "file": "src\\sample.js"
+    },
+    {
+      "source": "module:sample.js",
+      "target": "function:call",
+      "type": "contains",
+      "id": "contains:99493e06-6887-4449-8481-45825d4e5497",
+      "file": "src\\sample.js"
+    },
+    {
+      "source": "module:sample.js",
+      "target": "class:Animal",
+      "type": "contains",
+      "id": "contains:822ea2de-2593-4175-9b76-f023398ba35b",
+      "file": "src\\sample.js"
+    },
+    {
+      "source": "module:sample.js",
+      "target": "class:Dog",
+      "type": "contains",
+      "id": "contains:469b74b2-1c85-46bd-bf5f-6b9211c2ec77",
+      "file": "src\\sample.js"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:__init__",
+      "type": "contains",
+      "id": "contains:717650ab-d1d5-46f7-b364-08545a57eaa3",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:get_name",
+      "type": "contains",
+      "id": "contains:a73d083b-9e41-4618-af38-4b0e1dcb45da",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:greet",
+      "type": "contains",
+      "id": "contains:a9aa61b5-585c-4030-a93a-3ec3821ae55c",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:celebrate_birthday",
+      "type": "contains",
+      "id": "contains:4b11db7d-4cac-41d7-a027-5f4998e0d82a",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:calculate_future_date",
+      "type": "contains",
+      "id": "contains:bdd2ed6e-0285-4c3c-bae7-e25638fa8c5f",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:add",
+      "type": "contains",
+      "id": "contains:2a3d7d9a-1e17-4ab9-b9ca-75a6e57dd4f7",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:subtract",
+      "type": "contains",
+      "id": "contains:ac79b4d7-d8df-4211-91ff-425badc38a5e",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:use_imported_functions",
+      "type": "contains",
+      "id": "contains:5afb19ef-f36f-475c-b312-0a39fc2766f4",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:main",
+      "type": "contains",
+      "id": "contains:af469397-d97a-4fda-917b-68477f4be624",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "class:BaseClass",
+      "type": "contains",
+      "id": "contains:231fc66b-458b-4275-93a7-462f890dc552",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "class:to",
+      "type": "contains",
+      "id": "contains:2d13f03e-86b0-497f-a6eb-4f823016a5dd",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "class:Person",
+      "type": "contains",
+      "id": "contains:9d0a0fd4-32c4-420a-bb7b-4b20b158e3dd",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "class:representing",
+      "type": "contains",
+      "id": "contains:7804ed4b-7150-4ad1-822a-be99cb86be0d",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "class:Calculator",
+      "type": "contains",
+      "id": "contains:29e2209d-5783-4bc5-a4b9-3a8a7de95c84",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.tsx",
+      "target": "function:calculateAge",
+      "type": "contains",
+      "id": "contains:bbec3f05-cb7a-468f-9a83-023e5d2ef3ea",
+      "file": "src\\sample.tsx"
+    },
+    {
+      "source": "module:sample.tsx",
+      "target": "class:abstract",
+      "type": "contains",
+      "id": "contains:69205c59-f8c0-4540-a84a-dfa72c53abb2",
+      "file": "src\\sample.tsx"
+    },
+    {
+      "source": "module:sample.tsx",
+      "target": "class:BaseEntity",
+      "type": "contains",
+      "id": "contains:07f19672-1a57-4930-8ac3-5f766f68e90b",
+      "file": "src\\sample.tsx"
+    },
+    {
+      "source": "module:sample.tsx",
+      "target": "class:User",
+      "type": "contains",
+      "id": "contains:166f912b-32cb-4c54-a84d-416838d5dcf0",
+      "file": "src\\sample.tsx"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:hello",
+      "type": "contains",
+      "id": "contains:b9bb9d2a-86a0-42f2-971a-cfacc8095f6e",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:greeting",
+      "type": "contains",
+      "id": "contains:ddecb824-8602-4583-948c-d1fef8185ca4",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:calculate_future_date",
+      "type": "contains",
+      "id": "contains:752a78b5-e360-4317-ad47-c5755afedf91",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:__init__",
+      "type": "contains",
+      "id": "contains:aa9f78ca-888b-4390-99eb-7fd94d4241f7",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:add",
+      "type": "contains",
+      "id": "contains:bd088174-fe70-4042-91bf-2c51b1fbf945",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:subtract",
+      "type": "contains",
+      "id": "contains:36084916-95e2-42d2-bcc1-1dc096b2b794",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:greet",
+      "type": "contains",
+      "id": "contains:b775816d-e274-4e4c-96fc-c3d5c440395f",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:calculate_birthday",
+      "type": "contains",
+      "id": "contains:d1e38ee8-b7b2-40c5-8032-d2192c185d49",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:async_function",
+      "type": "contains",
+      "id": "contains:3bf748ff-4965-4807-a3d0-5bc7bd0b26ce",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:math_operations",
+      "type": "contains",
+      "id": "contains:bf55cc13-3b35-4e54-b3a9-c4f40e108210",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "class:Calculator",
+      "type": "contains",
+      "id": "contains:193c2790-0c7b-412c-b3cc-46187f0539e1",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "class:Person",
+      "type": "contains",
+      "id": "contains:3919385e-249f-4c83-9665-69ac26b0a0dd",
+      "file": "src\\sample_module.py"
+    }
+  ],
+  "file_nodes": {
+    "src\\nested_example.py": [
+      "module:nested_example.py",
+      "function:outer_function",
+      "function:inner_function",
+      "function:__init__",
+      "function:greet",
+      "function:generate_greeting",
+      "function:celebrate_birthday",
+      "function:create_counter",
+      "function:increment",
+      "function:run_async_demo",
+      "class:methods",
+      "class:Person",
+      "class:with"
+    ],
+    "src\\sample.js": [
+      "module:sample.js",
+      "function:readJsonFile",
+      "function:processAnimals",
+      "function:call",
+      "class:Animal",
+      "class:Dog"
+    ],
+    "src\\sample.py": [
+      "module:sample.py",
+      "function:__init__",
+      "function:get_name",
+      "function:__init__",
+      "function:greet",
+      "function:celebrate_birthday",
+      "function:calculate_future_date",
+      "function:__init__",
+      "function:add",
+      "function:subtract",
+      "function:use_imported_functions",
+      "function:main",
+      "class:BaseClass",
+      "class:to",
+      "class:Person",
+      "class:representing",
+      "class:Calculator"
+    ],
+    "src\\sample.tsx": [
+      "module:sample.tsx",
+      "function:calculateAge",
+      "class:abstract",
+      "class:BaseEntity",
+      "class:User"
+    ],
+    "src\\sample_module.py": [
+      "module:sample_module.py",
+      "function:hello",
+      "function:greeting",
+      "function:calculate_future_date",
+      "function:__init__",
+      "function:add",
+      "function:subtract",
+      "function:__init__",
+      "function:greet",
+      "function:calculate_birthday",
+      "function:async_function",
+      "function:math_operations",
+      "class:Calculator",
+      "class:Person"
+    ]
+  }
+}

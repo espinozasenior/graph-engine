@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from graph_core.api import create_app
 from graph_core.manager import DependencyGraphManager
-from graph_core.storage.in_memory_graph import InMemoryGraphStorage
+from graph_core.storage.in_memory import InMemoryGraphStorage
 
 
 class TestAPI(unittest.TestCase):
