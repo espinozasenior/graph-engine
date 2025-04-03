@@ -24,7 +24,7 @@ from graph_core.security.graph_integration import scan_parse_result_for_secrets
 logger = logging.getLogger(__name__)
 
 # Default JSON file path
-DEFAULT_JSON_PATH = os.path.join("data", "graph_data.json")
+DEFAULT_JSON_PATH = os.path.join("Data", "graph_data.json")
 
 
 class DependencyGraphManager:
