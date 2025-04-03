@@ -9,7 +9,7 @@ import os
 import logging
 import threading
 import time
-from typing import List, Optional, Dict, Any, Callable, Set, Tuple, Union
+from typing import List, Optional, Dict, Any, Callable, Set, Tuple, Union, Literal
 from collections import deque
 
 from graph_core.analyzer import get_parser_for_file
@@ -20,6 +20,9 @@ from graph_core.watchers.rename_detection import detect_renames, RenameEvent, ma
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+# Default JSON file path
+DEFAULT_JSON_PATH = os.path.join("data", "graph_data.json")
 
 
 class DependencyGraphManager:
@@ -36,14 +39,40 @@ class DependencyGraphManager:
     # How long (in seconds) to keep track of deleted files for rename detection
     RENAME_DETECTION_WINDOW = 2.0
     
-    def __init__(self, storage: Union[InMemoryGraphStorage, JSONGraphStorage]):
+    def __init__(self, 
+                 storage: Optional[Union[InMemoryGraphStorage, JSONGraphStorage]] = None,
+                 storage_type: Literal["memory", "json"] = "memory",
+                 json_path: str = DEFAULT_JSON_PATH):
         """
         Initialize the dependency graph manager.
         
         Args:
-            storage: An instance of InMemoryGraphStorage or JSONGraphStorage to store the graph data
+            storage: An instance of InMemoryGraphStorage or JSONGraphStorage to store the graph data.
+                If not provided, a new storage instance will be created based on storage_type.
+            storage_type: The type of storage to use if storage is not provided.
+                "memory" for in-memory storage, "json" for JSON file storage.
+            json_path: Path to the JSON file when using JSONGraphStorage.
+                Only used if storage_type is "json" and storage is not provided.
         """
+        # Create the storage if not provided
+        if storage is None:
+            if storage_type == "json":
+                # Ensure the directory exists
+                os.makedirs(os.path.dirname(json_path), exist_ok=True)
+                storage = JSONGraphStorage(json_path)
+                logger.info(f"Created JSONGraphStorage with path: {json_path}")
+            else:
+                storage = InMemoryGraphStorage()
+                logger.info("Created InMemoryGraphStorage")
+        else:
+            if isinstance(storage, JSONGraphStorage):
+                logger.info(f"Using provided JSONGraphStorage with path: {storage.json_path}")
+            else:
+                logger.info("Using provided InMemoryGraphStorage")
+                
         self.storage = storage
+        self.is_json_storage = isinstance(storage, JSONGraphStorage)
+        
         # Dynamic analysis event handlers
         self.dynamic_event_handlers = []
         
@@ -64,6 +93,33 @@ class DependencyGraphManager:
         # Keep track of renamed files for history
         self.rename_history = {}  # Maps new_path -> old_path
     
+    @classmethod
+    def create_with_json_storage(cls, json_path: str = DEFAULT_JSON_PATH) -> 'DependencyGraphManager':
+        """
+        Create a DependencyGraphManager with JSONGraphStorage.
+        
+        Args:
+            json_path: Path to the JSON file for storage
+            
+        Returns:
+            A new DependencyGraphManager instance with JSONGraphStorage
+        """
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(json_path), exist_ok=True)
+        storage = JSONGraphStorage(json_path)
+        return cls(storage=storage)
+    
+    @classmethod
+    def create_with_memory_storage(cls) -> 'DependencyGraphManager':
+        """
+        Create a DependencyGraphManager with InMemoryGraphStorage.
+        
+        Returns:
+            A new DependencyGraphManager instance with InMemoryGraphStorage
+        """
+        storage = InMemoryGraphStorage()
+        return cls(storage=storage)
+        
     def register_dynamic_handler(self, handler_func):
         """
         Register a dynamic analysis event handler.
@@ -79,60 +135,111 @@ class DependencyGraphManager:
         self.dynamic_event_handlers.append(handler_func)
         logger.info(f"Registered dynamic event handler: {handler_func.__name__}")
     
-    def process_dynamic_event(self, event_type: str, source_id: str, target_id: Optional[str] = None) -> None:
+    def process_dynamic_event(self, event_type: str, source_id: str, target_id: str = None) -> bool:
         """
-        Process a dynamic event by updating the graph and notifying handlers.
+        Process a dynamic event such as a function call or import.
         
         Args:
-            event_type: Type of the event ('call', 'import', etc.)
+            event_type: Type of the event ('call', 'import')
             source_id: ID of the source node
             target_id: ID of the target node (optional)
-        """
-        # Update the graph based on the event type
-        if event_type == 'call' and target_id is not None:
-            # Check if the nodes exist
-            source_node = self.storage.get_node(source_id)
-            target_node = self.storage.get_node(target_id)
             
-            # Create or update edge
-            if source_node and target_node:
-                # Try to find the existing edge
-                edges = self.storage.get_all_edges()
-                edge = None
+        Returns:
+            bool: True if the event was processed successfully, False otherwise
+        """
+        try:
+            success = False
+            
+            if event_type == 'call':
+                if target_id is None:
+                    logger.warning(f"Target ID is required for 'call' events")
+                    return False
+                    
+                # Get the source and target nodes
+                source_node = self.storage.get_node(source_id)
+                target_node = self.storage.get_node(target_id)
                 
-                for e in edges:
-                    if e.get('source') == source_id and e.get('target') == target_id:
-                        edge = e
+                if source_node is None or target_node is None:
+                    logger.warning(f"Source node {source_id} or target node {target_id} not found")
+                    return False
+                
+                # Check if an edge already exists
+                existing_edges = self.storage.get_edges_for_nodes([source_id])
+                existing_edge = None
+                
+                for edge in existing_edges:
+                    if (edge['source'] == source_id and 
+                        edge['target'] == target_id and 
+                        edge['type'] == 'calls'):
+                        existing_edge = edge
                         break
                 
-                if edge:
-                    # Update existing edge
-                    if 'dynamic_call_count' in edge:
-                        edge['dynamic_call_count'] += 1
-                    else:
-                        edge['dynamic_call_count'] = 1
-                    edge['dynamic'] = True
+                # Update the existing edge or add a new one
+                current_time = time.time()
+                
+                if existing_edge:
+                    # Update the existing edge
+                    edge_id = existing_edge['id']
+                    
+                    # Increment the call count
+                    call_count = existing_edge.get('dynamic_call_count', 0) + 1
+                    
+                    # Update the edge with networkx
+                    self.storage.graph[source_id][target_id]['dynamic_call_count'] = call_count
+                    self.storage.graph[source_id][target_id]['dynamic'] = True
+                    self.storage.graph[source_id][target_id]['last_call_time'] = current_time
+                    
+                    logger.debug(f"Updated dynamic edge: {source_id} -> {target_id}, calls: {call_count}")
                 else:
-                    # Create new edge
-                    edge = {
+                    # Add a new edge
+                    edge_data = {
+                        'id': f"edge:{source_id}:{target_id}:calls",
                         'source': source_id,
                         'target': target_id,
                         'type': 'calls',
                         'dynamic': True,
-                        'dynamic_call_count': 1
+                        'dynamic_call_count': 1,
+                        'first_call_time': current_time,
+                        'last_call_time': current_time
                     }
+                    
+                    # Add the edge to the graph
+                    self.storage.graph.add_edge(
+                        source_id, 
+                        target_id, 
+                        **edge_data
+                    )
+                    
+                    logger.debug(f"Added dynamic edge: {source_id} -> {target_id}")
                 
-                # Add or update the edge in storage
-                self.storage.graph.add_edge(source_id, target_id, **{k: v for k, v in edge.items() 
-                                                                  if k not in ['source', 'target']})
-                logger.debug(f"Added/updated dynamic call edge: {source_id} -> {target_id} (count: {edge.get('dynamic_call_count', 1)})")
-        
-        # Notify dynamic event handlers
-        for handler in self.dynamic_event_handlers:
-            try:
-                handler(event_type, source_id, target_id)
-            except Exception as e:
-                logger.error(f"Error in dynamic event handler {handler.__name__}: {str(e)}")
+                # Save graph if using JSON storage
+                if self.is_json_storage:
+                    self.storage.save_graph()
+                    logger.debug(f"Graph saved to JSON after dynamic call event: {source_id} -> {target_id}")
+                
+                success = True
+                
+            elif event_type == 'import':
+                # TODO: Implement import tracking
+                logger.warning(f"Import tracking not yet implemented")
+                success = False
+                
+            else:
+                logger.warning(f"Unknown dynamic event type: {event_type}")
+                success = False
+            
+            # Notify all registered event handlers
+            for handler in self.dynamic_event_handlers:
+                try:
+                    handler(event_type, source_id, target_id)
+                except Exception as e:
+                    logger.error(f"Error in dynamic event handler {handler.__name__}: {str(e)}")
+                    
+            return success
+                
+        except Exception as e:
+            logger.error(f"Error processing dynamic event: {str(e)}")
+            return False
     
     def update_function_call_count(self, function_id: str, increment: int = 1) -> None:
         """
@@ -154,6 +261,10 @@ class DependencyGraphManager:
             attrs = {k: v for k, v in node.items() if k != 'id'}
             self.storage.graph.add_node(function_id, **attrs)
             logger.debug(f"Updated call count for {function_id}: {node['dynamic_call_count']}")
+            
+            # Save the graph if using JSONGraphStorage
+            if self.is_json_storage:
+                self.storage.save_graph()
     
     def detect_renames(self) -> List[RenameEvent]:
         """
@@ -401,6 +512,10 @@ class DependencyGraphManager:
         if updated:
             self.rename_history[new_path] = old_path
             logger.info(f"Updated filepath for nodes from {old_path} to {new_path}")
+            
+            # Save the graph if using JSONGraphStorage
+            if self.is_json_storage:
+                self.storage.save_graph()
         
         return updated
     
@@ -471,26 +586,23 @@ class DependencyGraphManager:
                 updated_functions[old_id] = new_id
                 logger.info(f"Updated function name: {old_name} -> {new_name} (id: {old_id})")
             
+            # Save the graph if using JSONGraphStorage and there were updates
+            if updated_functions and self.is_json_storage:
+                self.storage.save_graph()
+                
             return updated_functions
             
         except Exception as e:
             logger.error(f"Error updating function names: {str(e)}", exc_info=True)
             return {}
     
-    def on_file_event(self, event_type: str, filepath: str) -> None:
+    def _handle_file_created(self, filepath: str) -> None:
         """
-        Handle a file event by updating the graph accordingly.
+        Handle 'created' file event.
         
         Args:
-            event_type: Type of the event, one of 'created', 'modified', or 'deleted'
-            filepath: Path to the file that triggered the event
-            
-        Raises:
-            ValueError: If the event_type is not one of 'created', 'modified', or 'deleted'
+            filepath: Path to the file that was created
         """
-        if event_type not in ('created', 'modified', 'deleted'):
-            raise ValueError(f"Invalid event type: {event_type}")
-        
         # Get file extension
         _, ext = os.path.splitext(filepath)
         ext = ext.lower()
@@ -499,108 +611,160 @@ class DependencyGraphManager:
         if ext not in self.SUPPORTED_EXTENSIONS:
             logger.debug(f"Ignoring unsupported file type: {filepath}")
             return
+            
+        # Add to created files buffer for rename detection
+        self.created_files.append((time.time(), filepath))
         
+        # Check for renames
+        rename_events = self.detect_renames()
+        
+        # If this file was part of a rename, update the nodes instead of creating new ones
+        renamed = False
+        for event in rename_events:
+            if event.new_path == filepath:
+                # Update the filepath for all nodes from the old file
+                renamed = self.update_node_filepath(event.old_path, filepath)
+                break
+        
+        # If not a rename, process as a new file
+        if not renamed:
+            # Get the appropriate parser
+            parser = get_parser_for_file(filepath)
+            if parser is None:
+                logger.warning(f"No parser available for {filepath}")
+                return
+            
+            # Parse the file
+            parse_result = parser.parse_file(filepath)
+            
+            # Update the storage
+            self.storage.add_or_update_file(filepath, parse_result)
+            logger.info(f"Updated graph for created file: {filepath}")
+    
+    def _handle_file_modified(self, filepath: str) -> None:
+        """
+        Handle 'modified' file event.
+        
+        Args:
+            filepath: Path to the file that was modified
+        """
+        # Get file extension
+        _, ext = os.path.splitext(filepath)
+        ext = ext.lower()
+        
+        # Only process supported file types
+        if ext not in self.SUPPORTED_EXTENSIONS:
+            logger.debug(f"Ignoring unsupported file type: {filepath}")
+            return
+            
+        # Get the appropriate parser
+        parser = get_parser_for_file(filepath)
+        if parser is None:
+            logger.warning(f"No parser available for {filepath}")
+            return
+        
+        # Parse the file
+        new_ast = parser.parse_file(filepath)
+        
+        # Get the original AST for this file
+        old_ast = {
+            'nodes': [],
+            'edges': []
+        }
+        
+        if filepath in self.storage.file_nodes:
+            # Build the old AST from the storage
+            old_node_ids = self.storage.file_nodes.get(filepath, set())
+            old_nodes = [self.storage.get_node(node_id) for node_id in old_node_ids]
+            old_ast['nodes'] = [node for node in old_nodes if node]
+            
+            # Get edges connected to these nodes
+            old_edges = self.storage.get_edges_for_nodes(old_node_ids)
+            old_ast['edges'] = old_edges
+            
+            # Check for renamed functions
+            renamed_functions = self.update_function_names(old_ast, new_ast)
+            
+            # Remove renamed functions from the new AST to avoid duplicates
+            if renamed_functions:
+                # Create a lookup set of new_ids that correspond to renamed functions
+                renamed_new_ids = set(renamed_functions.values())
+                
+                # Filter out these nodes from the new AST
+                new_ast['nodes'] = [
+                    node for node in new_ast['nodes'] 
+                    if node.get('id') not in renamed_new_ids
+                ]
+        
+        # Update the storage with the new AST
+        self.storage.add_or_update_file(filepath, new_ast)
+        logger.info(f"Updated graph for modified file: {filepath}")
+    
+    def _handle_file_deleted(self, filepath: str) -> None:
+        """
+        Handle 'deleted' file event.
+        
+        Args:
+            filepath: Path to the file that was deleted
+        """
+        # Get file extension
+        _, ext = os.path.splitext(filepath)
+        ext = ext.lower()
+        
+        # Only process supported file types
+        if ext not in self.SUPPORTED_EXTENSIONS:
+            logger.debug(f"Ignoring unsupported file type: {filepath}")
+            return
+            
+        # Add to deleted files buffer for rename detection
+        self.deleted_files.append((time.time(), filepath))
+        
+        # Check for renames
+        rename_events = self.detect_renames()
+        
+        # If this file was not part of a rename, remove it from storage
+        renamed = False
+        for event in rename_events:
+            if event.old_path == filepath:
+                renamed = True
+                break
+        
+        if not renamed:
+            # Remove the file from storage
+            self.storage.remove_file(filepath)
+            logger.info(f"Removed file from graph: {filepath}")
+    
+    def on_file_event(self, event_type: str, filepath: str) -> None:
+        """
+        Handle file events from the file system watcher.
+        
+        Args:
+            event_type: The type of event ('created', 'modified', 'deleted')
+            filepath: The path to the file that triggered the event
+        """
         try:
             if event_type == 'created':
-                # Add to created files buffer for rename detection
-                self.created_files.append((time.time(), filepath))
-                
-                # Check for renames
-                rename_events = self.detect_renames()
-                
-                # If this file was part of a rename, update the nodes instead of creating new ones
-                renamed = False
-                for event in rename_events:
-                    if event.new_path == filepath:
-                        # Update the filepath for all nodes from the old file
-                        renamed = self.update_node_filepath(event.old_path, filepath)
-                        break
-                
-                # If not a rename, process as a new file
-                if not renamed:
-                    # Get the appropriate parser
-                    parser = get_parser_for_file(filepath)
-                    if parser is None:
-                        logger.warning(f"No parser available for {filepath}")
-                        return
-                    
-                    # Parse the file
-                    parse_result = parser.parse_file(filepath)
-                    
-                    # Update the storage
-                    self.storage.add_or_update_file(filepath, parse_result)
-                    logger.info(f"Updated graph for {event_type} file: {filepath}")
-            
+                self._handle_file_created(filepath)
             elif event_type == 'modified':
-                # Get the appropriate parser
-                parser = get_parser_for_file(filepath)
-                if parser is None:
-                    logger.warning(f"No parser available for {filepath}")
-                    return
-                
-                # Parse the file
-                new_ast = parser.parse_file(filepath)
-                
-                # Get the original AST for this file
-                old_ast = {
-                    'nodes': [],
-                    'edges': []
-                }
-                
-                if filepath in self.storage.file_nodes:
-                    # Build the old AST from the storage
-                    old_node_ids = self.storage.file_nodes.get(filepath, set())
-                    old_nodes = [self.storage.get_node(node_id) for node_id in old_node_ids]
-                    old_ast['nodes'] = [node for node in old_nodes if node]
-                    
-                    # Get edges connected to these nodes
-                    old_edges = self.storage.get_edges_for_nodes(old_node_ids)
-                    old_ast['edges'] = old_edges
-                    
-                    # Check for renamed functions
-                    renamed_functions = self.update_function_names(old_ast, new_ast)
-                    
-                    # Remove renamed functions from the new AST to avoid duplicates
-                    if renamed_functions:
-                        # Create a lookup set of new_ids that correspond to renamed functions
-                        renamed_new_ids = set(renamed_functions.values())
-                        
-                        # Filter out these nodes from the new AST
-                        new_ast['nodes'] = [
-                            node for node in new_ast['nodes'] 
-                            if node.get('id') not in renamed_new_ids
-                        ]
-                
-                # Update the storage with the new AST
-                self.storage.add_or_update_file(filepath, new_ast)
-                logger.info(f"Updated graph for {event_type} file: {filepath}")
-            
+                self._handle_file_modified(filepath)
             elif event_type == 'deleted':
-                # Add to deleted files buffer for rename detection
-                self.deleted_files.append((time.time(), filepath))
+                self._handle_file_deleted(filepath)
+            elif event_type == 'renamed':
+                # Extract old and new paths from the rename event
+                old_path, new_path = filepath
+                self.update_node_filepath(old_path, new_path)
+            else:
+                logging.warning(f"Unknown event type: {event_type} for file {filepath}")
                 
-                # Check for renames
-                rename_events = self.detect_renames()
+            # Save graph if using JSON storage
+            if self.is_json_storage:
+                self.storage.save_graph()
+                logging.debug(f"Graph saved to JSON after {event_type} event for {filepath}")
                 
-                # If this file was not part of a rename, remove it from storage
-                renamed = False
-                for event in rename_events:
-                    if event.old_path == filepath:
-                        renamed = True
-                        break
-                
-                if not renamed:
-                    # Remove the file from storage
-                    self.storage.remove_file(filepath)
-                    logger.info(f"Removed file from graph: {filepath}")
-        
-        except FileNotFoundError:
-            logger.warning(f"File not found: {filepath}")
-        except PermissionError:
-            logger.error(f"Permission denied when accessing file: {filepath}")
         except Exception as e:
-            logger.error(f"Error processing file event for {filepath}: {str(e)}")
-            raise
+            logging.error(f"Error handling {event_type} event for {filepath}: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
     
     def process_existing_files(self, directory: str) -> int:
         """
@@ -645,4 +809,73 @@ class DependencyGraphManager:
         """
         from graph_core.dynamic.import_hook import clear_transformation_cache
         clear_transformation_cache(self.cache_dir)
-        logger.info("Instrumentation cache cleared") 
+        logger.info("Instrumentation cache cleared")
+    
+    def migrate_to_json_storage(self, json_path: str = DEFAULT_JSON_PATH) -> bool:
+        """
+        Migrate the current in-memory storage to JSON storage.
+        
+        Args:
+            json_path: Path to save the JSON file to
+            
+        Returns:
+            bool: True if migration was successful, False otherwise
+            
+        Raises:
+            ValueError: If the current storage is already JSON storage
+        """
+        if self.is_json_storage:
+            raise ValueError("Cannot migrate: already using JSON storage")
+            
+        try:
+            # Create a directory for the JSON file if it doesn't exist
+            os.makedirs(os.path.dirname(json_path), exist_ok=True)
+            
+            # Create a new JSON storage
+            json_storage = JSONGraphStorage(json_path)
+            
+            # Get all nodes and edges from current storage
+            all_nodes = self.storage.get_all_nodes()
+            all_edges = self.storage.get_all_edges()
+            
+            # Add all nodes to the new storage
+            for node in all_nodes:
+                # Ensure any attributes that might be sets are converted to lists
+                for key, value in node.items():
+                    if isinstance(value, set):
+                        node[key] = list(value)
+                json_storage.graph.add_node(node['id'], **{k: v for k, v in node.items() if k != 'id'})
+            
+            # Add all edges to the new storage
+            for edge in all_edges:
+                # Ensure any attributes that might be sets are converted to lists
+                for key, value in edge.items():
+                    if isinstance(value, set):
+                        edge[key] = list(value)
+                json_storage.graph.add_edge(
+                    edge['source'], 
+                    edge['target'], 
+                    key=edge.get('type', 'default'),  # Add a key parameter for edge type
+                    **{k: v for k, v in edge.items() if k not in ['source', 'target', 'type']}
+                )
+            
+            # Copy file_nodes mapping using lists instead of sets
+            json_storage.file_nodes = {}
+            for filepath, node_ids in self.storage.file_nodes.items():
+                json_storage.file_nodes[filepath] = list(node_ids)
+            
+            # Save the graph data to disk
+            json_storage.save_graph()
+            
+            # Replace the current storage with the new JSON storage
+            self.storage = json_storage
+            self.is_json_storage = True
+            
+            logger.info(f"Successfully migrated from in-memory storage to JSON storage at {json_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to migrate to JSON storage: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False 

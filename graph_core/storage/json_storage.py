@@ -47,20 +47,25 @@ class JSONGraphStorage:
         """
         Load the graph from the JSON file.
         
-        If the file doesn't exist or is invalid, an empty graph is initialized.
+        If the file doesn't exist, an empty graph is initialized.
         """
         with self._lock:
+            # Reset the graph
+            self.graph.clear()
+            self.file_nodes = {}
+            
+            # If the file doesn't exist yet, don't try to load it
             if not os.path.exists(self.json_path):
-                logger.info(f"JSON file {self.json_path} does not exist. Creating a new graph.")
+                logger.info(f"JSON file {self.json_path} doesn't exist yet - using empty graph")
                 return
             
             try:
+                # Acquire a read lock to ensure we don't read a partially written file
+                lock_acquired = self._acquire_file_lock()
+                
+                # Load the data from the JSON file
                 with open(self.json_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                
-                # Clear existing graph
-                self.graph.clear()
-                self.file_nodes.clear()
                 
                 # Load nodes
                 for node_data in data.get('nodes', []):
@@ -74,16 +79,32 @@ class JSONGraphStorage:
                     edge_type = edge_data.pop('type')
                     self.graph.add_edge(source, target, key=edge_type, **edge_data)
                 
-                # Load file_nodes mapping
-                self.file_nodes = data.get('file_nodes', {})
+                # Load file node mappings (convert lists to sets for internal representation)
+                file_nodes = data.get('file_nodes', {})
+                for file_path, node_ids in file_nodes.items():
+                    self.file_nodes[file_path] = set(node_ids)
                 
-                logger.info(f"Loaded graph with {self.graph.number_of_nodes()} nodes and "
-                            f"{self.graph.number_of_edges()} edges")
-            except (json.JSONDecodeError, IOError) as e:
-                logger.error(f"Error loading graph from {self.json_path}: {e}")
-                # Initialize empty graph as fallback
+                # Count loaded nodes and edges
+                node_count = self.graph.number_of_nodes()
+                edge_count = self.graph.number_of_edges()
+                file_count = len(self.file_nodes)
+                
+                logger.info(f"Loaded graph from {self.json_path} - {node_count} nodes, {edge_count} edges, {file_count} files")
+                
+            except json.JSONDecodeError as e:
+                logger.error(f"Error decoding JSON from {self.json_path}: {e}")
+                # If JSON is invalid, start with an empty graph
                 self.graph.clear()
-                self.file_nodes.clear()
+                self.file_nodes = {}
+            except (IOError, OSError) as e:
+                logger.error(f"Error loading graph from {self.json_path}: {e}")
+                # If file can't be read, start with an empty graph
+                self.graph.clear()
+                self.file_nodes = {}
+            finally:
+                # Always release the lock if we acquired it
+                if lock_acquired:
+                    self._release_file_lock()
     
     def _acquire_file_lock(self, max_attempts: int = 10, delay_base: float = 0.1) -> bool:
         """
@@ -149,62 +170,85 @@ class JSONGraphStorage:
         except Exception as e:
             logger.error(f"Error releasing file lock: {e}")
     
+    def _convert_for_json(self, value):
+        """
+        Convert a value to be JSON serializable.
+        
+        Args:
+            value: The value to convert
+            
+        Returns:
+            A JSON serializable version of the value
+        """
+        if isinstance(value, set):
+            return list(value)
+        elif isinstance(value, dict):
+            return {k: self._convert_for_json(v) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [self._convert_for_json(v) for v in value]
+        else:
+            return value
+
     def save_graph(self) -> None:
         """
-        Save the graph to the JSON file.
+        Save the graph data to the JSON file.
         
-        Creates the parent directories if they don't exist.
-        Uses file locking to ensure safe concurrent access from multiple processes.
+        This method writes all nodes, edges, and file-node mappings to the JSON file.
+        The operation is atomic, using a temporary file and rename to avoid data corruption.
         """
-        with self._lock:
-            # Acquire file lock for cross-process safety
-            lock_acquired = self._acquire_file_lock()
-            if not lock_acquired:
-                logger.warning("Could not acquire file lock. Saving without lock (may cause data corruption if multiple processes are writing).")
+        lock_acquired = self._acquire_file_lock()
+        if not lock_acquired:
+            logger.warning(f"Could not acquire lock to save graph to {self.json_path}")
+            return
+        
+        try:
+            # Create the dictionary to export
+            data = {
+                'nodes': [],
+                'edges': [],
+                'file_nodes': {}
+            }
             
-            try:
-                # Create parent directories if they don't exist
-                os.makedirs(os.path.dirname(os.path.abspath(self.json_path)), exist_ok=True)
-                
-                # Prepare data in a serializable format
-                data = {
-                    'nodes': [],
-                    'edges': [],
-                    'file_nodes': self.file_nodes
+            # Add nodes with their attributes
+            for node_id, attrs in self.graph.nodes(data=True):
+                node_data = {'id': node_id}
+                node_data.update(attrs)
+                # Convert sets to lists for JSON serialization
+                node_data = self._convert_for_json(node_data)
+                data['nodes'].append(node_data)
+            
+            # Add edges with their attributes
+            for source, target, key, attrs in self.graph.edges(data=True, keys=True):
+                edge_data = {
+                    'source': source,
+                    'target': target,
+                    'type': key
                 }
-                
-                # Add nodes with their attributes
-                for node_id, attrs in self.graph.nodes(data=True):
-                    node_data = {'id': node_id}
-                    node_data.update(attrs)
-                    data['nodes'].append(node_data)
-                
-                # Add edges with their attributes
-                for source, target, key, attrs in self.graph.edges(data=True, keys=True):
-                    edge_data = {
-                        'source': source,
-                        'target': target,
-                        'type': key
-                    }
-                    edge_data.update(attrs)
-                    data['edges'].append(edge_data)
-                
-                # Write to a temporary file first, then rename for atomic update
-                temp_file = f"{self.json_path}.tmp"
-                with open(temp_file, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, indent=2)
-                
-                # Rename the temp file to the actual file (atomic operation)
-                # This prevents data corruption if the process is interrupted during writing
-                os.replace(temp_file, self.json_path)
-                
-                logger.info(f"Saved graph to {self.json_path}")
-            except (IOError, OSError) as e:
-                logger.error(f"Error saving graph to {self.json_path}: {e}")
-            finally:
-                # Always release the lock, even if an error occurred
-                if lock_acquired:
-                    self._release_file_lock()
+                edge_data.update(attrs)
+                # Convert sets to lists for JSON serialization
+                edge_data = self._convert_for_json(edge_data)
+                data['edges'].append(edge_data)
+            
+            # Convert file_nodes mapping to proper format
+            for file_path, node_ids in self.file_nodes.items():
+                data['file_nodes'][file_path] = list(node_ids)
+            
+            # Write to a temporary file first, then rename for atomic update
+            temp_file = f"{self.json_path}.tmp"
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2)
+            
+            # Rename the temp file to the actual file (atomic operation)
+            # This prevents data corruption if the process is interrupted during writing
+            os.replace(temp_file, self.json_path)
+            
+            logger.info(f"Saved graph to {self.json_path}")
+        except (IOError, OSError) as e:
+            logger.error(f"Error saving graph to {self.json_path}: {e}")
+        finally:
+            # Always release the lock, even if an error occurred
+            if lock_acquired:
+                self._release_file_lock()
     
     def add_or_update_file(self, filepath: str, parse_result: Dict[str, List[Dict[str, Any]]]) -> None:
         """
@@ -219,7 +263,7 @@ class JSONGraphStorage:
             self.remove_file(filepath)
             
             # Track nodes for this file
-            self.file_nodes[filepath] = []
+            self.file_nodes[filepath] = set()
             
             # Add nodes
             for node_data in parse_result.get('nodes', []):
@@ -228,6 +272,7 @@ class JSONGraphStorage:
                 # If node already exists, update its files list
                 if self.graph.has_node(node_id):
                     node = self.graph.nodes[node_id]
+                    # Convert files to a set if it exists
                     files = set(node.get('files', []))
                     files.add(filepath)
                     node['files'] = list(files)
@@ -238,7 +283,7 @@ class JSONGraphStorage:
                     self.graph.add_node(node_id, **node_attrs)
                 
                 # Track this node for the file
-                self.file_nodes[filepath].append(node_id)
+                self.file_nodes[filepath].add(node_id)
             
             # Process edges and ensure module nodes exist
             for edge_data in parse_result.get('edges', []):
@@ -251,7 +296,7 @@ class JSONGraphStorage:
                     self.graph.add_node(target, type='module', name=target.split(':')[1], files=[filepath])
                     # Add to file nodes tracking if not already there
                     if target not in self.file_nodes[filepath]:
-                        self.file_nodes[filepath].append(target)
+                        self.file_nodes[filepath].add(target)
                 
                 # Add necessary attributes for tracking
                 attrs = edge_data.copy()
