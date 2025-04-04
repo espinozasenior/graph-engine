@@ -7,18 +7,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.x' # Or specify your desired Python version
+        python-version: '3.x' # Or specify your desired Python version, e.g., '3.11'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        # Install setuptools first to potentially fix distutils issues for tree-sitter
+        pip install setuptools 
         pip install -r requirements.txt
-        pip install pytest # Ensure pytest is installed
+        # pytest, httpx, and tree-sitter are now in requirements.txt
 
     - name: Run tests
       run: pytest -v
