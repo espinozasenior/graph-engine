@@ -27,7 +27,7 @@ jobs:
       run: python performance/profiler.py # Adjust if arguments or specific output handling is needed
 
     - name: Upload graph snapshot artifact (Example)
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: graph-snapshot
         path: graph_snapshot.json # Assuming the profiler or another process generates this
