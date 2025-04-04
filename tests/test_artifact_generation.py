@@ -17,9 +17,18 @@ def test_coverage_report_generation():
         '-p', 'no:terminal' # Disable terminal reporting for cleaner execution
     ]
     
-    # Run the command from the project root
-    result = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True, text=True)
-    
+    # Run the command from the project root with a timeout
+    try:
+        result = subprocess.run(
+            command, 
+            cwd=PROJECT_ROOT, 
+            capture_output=True, 
+            text=True, 
+            timeout=300 # Add a 5-minute timeout
+        )
+    except subprocess.TimeoutExpired as e:
+        pytest.fail(f"Coverage command timed out after 300 seconds.\nStdout: {e.stdout}\nStderr: {e.stderr}")
+
     # Assert that the command completed successfully (exit code 0)
     # Allow exit code 5 (no tests collected) if that's a possibility, 
     # as we only care about the command running without *crashing*.
@@ -41,9 +50,18 @@ def test_graph_snapshot_generation():
         '--output', output_file
     ]
     
-    # Run the command from the project root
-    result = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True, text=True)
-    
+    # Run the command from the project root with a timeout
+    try:
+        result = subprocess.run(
+            command, 
+            cwd=PROJECT_ROOT, 
+            capture_output=True, 
+            text=True, 
+            timeout=300 # Add a 5-minute timeout
+        )
+    except subprocess.TimeoutExpired as e:
+         pytest.fail(f"Snapshot generation command timed out after 300 seconds.\nStdout: {e.stdout}\nStderr: {e.stderr}")
+
     # Assert command completed successfully
     assert result.returncode == 0, f"Snapshot generation command failed with exit code {result.returncode}\nStderr: {result.stderr}\nStdout: {result.stdout}"
     # Optionally, check if the output file was created
