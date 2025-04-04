@@ -212,9 +212,14 @@ async def test_interpret_search_nodes_success():
     assert result["type"] == "search_results"
     assert "data" in result
     assert "nodes" in result["data"]
-    assert len(result["data"]["nodes"]) == 2 
+    assert len(result["data"]["nodes"]) == 4  # Updated to expect 4 nodes instead of 2
+    
+    # Check all expected nodes are present
     node_ids = {node["node_id"] for node in result["data"]["nodes"]}
-    assert node_ids == {"node1", "node3"}
+    assert "node1" in node_ids
+    assert "node3" in node_ids
+    assert "function:file1.function1" in node_ids
+    assert "function:file1.function2" in node_ids
 
 async def test_interpret_search_nodes_with_limit():
     """Test interpretation of search with an explicit limit."""

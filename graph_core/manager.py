@@ -40,7 +40,7 @@ class DependencyGraphManager:
     
     # How long (in seconds) to keep track of deleted files for rename detection
     RENAME_DETECTION_WINDOW = 2.0
-    
+
     def __init__(self, 
                  storage: Optional[Union[InMemoryGraphStorage, JSONGraphStorage]] = None,
                  storage_type: Literal["memory", "json"] = "memory",
@@ -218,6 +218,9 @@ class DependencyGraphManager:
                 if self.is_json_storage:
                     self.storage.save_graph()
                     logger.debug(f"Graph saved to JSON after dynamic call event: {source_id} -> {target_id}")
+                
+                source_name = source_node.get('name', source_id)
+                target_name = target_node.get('name', target_id)
                 
                 success = True
                 
@@ -646,10 +649,11 @@ class DependencyGraphManager:
 
                 # Parse the file
                 parse_result = parser.parse_file(filepath)
-
+                
                 # Scan for secrets and update parse result with secret information
+                original_parse_result = parse_result.copy() if parse_result else None
                 parse_result = scan_parse_result_for_secrets(parse_result, filepath)
-
+                
                 # Update the storage, including the hash
                 self.storage.add_or_update_file(filepath, parse_result, content_hash=content_hash)
                 logger.info(f"Updated graph for created file: {filepath}")
@@ -723,8 +727,9 @@ class DependencyGraphManager:
                 # Edges related to renamed functions might need adjustment, but add_or_update_file handles removal
 
             # Scan for secrets and update AST with secret information
+            original_new_ast = new_ast.copy() if new_ast else None
             new_ast = scan_parse_result_for_secrets(new_ast, filepath)
-
+            
             # Update the storage, passing the new hash
             self.storage.add_or_update_file(filepath, new_ast, content_hash=current_hash)
             logger.info(f"Updated graph for modified file: {filepath}")
@@ -768,15 +773,17 @@ class DependencyGraphManager:
             self.storage.remove_file(filepath)
             logger.info(f"Removed file from graph: {filepath}")
     
-    def on_file_event(self, event_type: str, filepath: str) -> None:
+    def on_file_event(self, event_type: str, filepath: str, extra_info: Dict[str, Any] = None) -> None:
         """
         Handle file events from the file system watcher.
         
         Args:
             event_type: The type of event ('created', 'modified', 'deleted')
             filepath: The path to the file that triggered the event
+            extra_info: Additional information about the event (optional)
         """
         try:
+            extra_info = extra_info or {}
             if event_type == 'created':
                 self._handle_file_created(filepath)
             elif event_type == 'modified':
@@ -784,8 +791,8 @@ class DependencyGraphManager:
             elif event_type == 'deleted':
                 self._handle_file_deleted(filepath)
             elif event_type == 'renamed':
-                # Extract old and new paths from the rename event
-                old_path, new_path = filepath
+                old_path = filepath
+                new_path = extra_info.get("dest_path", "")
                 self.update_node_filepath(old_path, new_path)
             else:
                 logging.warning(f"Unknown event type: {event_type} for file {filepath}")
@@ -799,6 +806,7 @@ class DependencyGraphManager:
             logging.error(f"Error handling {event_type} event for {filepath}: {str(e)}")
             import traceback
             logging.error(traceback.format_exc())
+            self._save_graph_if_json()
     
     def process_existing_files(self, directory: str) -> int:
         """
@@ -919,3 +927,23 @@ class DependencyGraphManager:
             import traceback
             logger.error(traceback.format_exc())
             return False 
+    
+    def get_graph_changes(self) -> Tuple[Optional[Set[Any]], Optional[Set[Tuple[Any, Any]]]]:
+        """Get the current graph nodes and edges.
+        
+        Returns:
+            A tuple containing the set of nodes and set of edges in the graph.
+        """
+        try:
+            all_nodes = set(self.storage.get_all_nodes())
+            all_edges = set(self.storage.get_all_edges())
+            return all_nodes, all_edges
+        except Exception as e:
+            logger.error(f"Error getting graph changes: {str(e)}")
+            return None, None
+
+    def _save_graph_if_json(self) -> None:
+        """Save the current graph to storage if using JSON storage."""
+        if self.is_json_storage:
+            self.storage.save_graph()
+            logger.debug("Graph saved to JSON") 
