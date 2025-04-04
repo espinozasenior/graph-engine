@@ -32,7 +32,7 @@ jobs:
 
       - name: Generate graph snapshot
         run: |
-          python generate_graph_snapshot.py --src-dir src --output graph_snapshot.json
+          python generate_graph_snapshot.py --src-dir graph_core --output graph_snapshot.json
       
       - name: Upload graph snapshot
         uses: actions/upload-artifact@v3

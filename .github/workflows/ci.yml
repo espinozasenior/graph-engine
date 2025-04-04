@@ -22,13 +22,16 @@ jobs:
         pip install -r requirements.txt
         # pytest, httpx, and tree-sitter are now in requirements.txt
 
+    - name: Build Tree-sitter languages
+      run: |
+        python -m graph_core.analyzer.treesitter_parser.build_languages
+
     - name: Run tests with coverage
       run: pytest -v --cov=graph_core --cov-report=html # Generate HTML coverage report in htmlcov/
 
     - name: Generate graph snapshot
-      # Assuming run_graph_manager.py can take src dir and output path
-      # You might need to adjust this command based on actual script arguments
-      run: python run_graph_manager.py --src-dir src --output graph_snapshot.json 
+      # Using our dedicated script for generating graph snapshots
+      run: python generate_graph_snapshot.py --src-dir graph_core --output graph_snapshot.json
 
     - name: Run performance profiler
       run: python performance/profiler.py # Adjust if arguments or specific output handling is needed

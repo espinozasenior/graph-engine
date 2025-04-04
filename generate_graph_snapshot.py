@@ -40,6 +40,20 @@ def generate_snapshot(src_dir: str, output_file: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing the graph snapshot data
     """
+    # Print absolute paths for debugging
+    abs_src_dir = os.path.abspath(src_dir)
+    abs_output_file = os.path.abspath(output_file)
+    logger.info(f"Source directory (absolute): {abs_src_dir}")
+    logger.info(f"Output file (absolute): {abs_output_file}")
+    
+    # List files in source directory for debugging
+    if os.path.exists(abs_src_dir):
+        files = os.listdir(abs_src_dir)
+        logger.info(f"Files in source directory: {len(files)} total")
+        if files:
+            sample = files[:5] if len(files) > 5 else files
+            logger.info(f"Sample files: {sample}")
+    
     if not os.path.exists(src_dir):
         raise FileNotFoundError(f"Source directory not found: {src_dir}")
     
@@ -73,7 +87,12 @@ def generate_snapshot(src_dir: str, output_file: str) -> Dict[str, Any]:
     
     # Write to output file
     logger.info(f"Writing snapshot to {output_file}")
-    os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
+    
+    # Ensure the output directory exists
+    output_dir = os.path.dirname(os.path.abspath(output_file))
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"Created output directory: {output_dir}")
     
     with open(output_file, 'w') as f:
         json.dump(snapshot, f, indent=2)
