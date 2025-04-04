@@ -1,0 +1,34 @@
+name: Python CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.x' # Or specify your desired Python version
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest # Ensure pytest is installed
+
+    - name: Run tests
+      run: pytest -v
+
+    - name: Run performance profiler
+      run: python performance/profiler.py # Adjust if arguments or specific output handling is needed
+
+    - name: Upload graph snapshot artifact (Example)
+      uses: actions/upload-artifact@v3
+      with:
+        name: graph-snapshot
+        path: graph_snapshot.json # Assuming the profiler or another process generates this
+      if: always() # Upload even if previous steps fail, might contain partial data or error info 
