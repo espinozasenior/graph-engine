@@ -42,63 +42,16 @@ def test_coverage_report_generation():
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Test runner differences on Windows")
 def test_graph_snapshot_generation():
-    """Tests if the graph snapshot generation command runs without errors."""
-    # Define the command to run the graph manager script
-    # This assumes run_graph_manager.py is executable and in the root
-    # Adjust path and arguments if necessary
+    """Tests if the graph snapshot generation script runs without errors."""
+    # Define the command to run the graph snapshot script
     output_file = os.path.join(PROJECT_ROOT, 'test_graph_snapshot.json')
     
-    # Create a simple script that uses the DependencyGraphManager to generate a snapshot
-    temp_script_path = os.path.join(PROJECT_ROOT, 'temp_snapshot.py')
-    with open(temp_script_path, 'w') as f:
-        f.write("""
-import os
-import sys
-import json
-from graph_core.manager import DependencyGraphManager
-
-def main():
-    # Get command line arguments
-    if len(sys.argv) < 3:
-        print("Usage: python temp_snapshot.py <src_dir> <output_file>")
-        sys.exit(1)
-    
-    src_dir = sys.argv[1]
-    output_file = sys.argv[2]
-    
-    # Create a manager with in-memory storage
-    manager = DependencyGraphManager()
-    
-    # Process existing files
-    manager.process_existing_files(src_dir)
-    
-    # Get all nodes and edges
-    nodes = manager.storage.get_all_nodes()
-    edges = manager.storage.get_all_edges()
-    
-    # Create the snapshot
-    snapshot = {
-        'nodes': [dict(node) for node in nodes],
-        'edges': [dict(edge) for edge in edges]
-    }
-    
-    # Write to output file
-    with open(output_file, 'w') as f:
-        json.dump(snapshot, f, indent=2)
-    
-    print(f"Snapshot written to {output_file}")
-    return 0
-
-if __name__ == '__main__':
-    sys.exit(main())
-""")
-    
-    # Run the temporary script instead
+    # Use the new dedicated script for generating snapshots
     command = [
         sys.executable,
-        temp_script_path,
-        os.path.join(PROJECT_ROOT, 'src'),
-        output_file
+        os.path.join(PROJECT_ROOT, 'generate_graph_snapshot.py'),
+        '--src-dir', os.path.join(PROJECT_ROOT, 'src'),
+        '--output', output_file
     ]
     
     try:
@@ -112,10 +65,6 @@ if __name__ == '__main__':
         )
     except subprocess.TimeoutExpired as e:
          pytest.fail(f"Snapshot generation command timed out after 300 seconds.\nStdout: {e.stdout}\nStderr: {e.stderr}")
-    finally:
-        # Clean up the temporary script
-        if os.path.exists(temp_script_path):
-            os.remove(temp_script_path)
 
     # Assert command completed successfully
     assert result.returncode == 0, f"Snapshot generation command failed with exit code {result.returncode}\nStderr: {result.stderr}\nStdout: {result.stdout}"

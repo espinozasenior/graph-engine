@@ -1,0 +1,41 @@
+name: Generate Graph Snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+
+jobs:
+  generate-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Build Tree-sitter languages
+        run: |
+          python -m graph_core.analyzer.treesitter_parser.build_languages
+
+      - name: Generate graph snapshot
+        run: |
+          python generate_graph_snapshot.py --src-dir src --output graph_snapshot.json
+      
+      - name: Upload graph snapshot
+        uses: actions/upload-artifact@v3
+        with:
+          name: graph-snapshot
+          path: graph_snapshot.json 
