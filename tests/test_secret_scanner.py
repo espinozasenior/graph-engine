@@ -381,7 +381,7 @@ AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwib
     
     def test_no_false_positives(self):
         """Test that common patterns don't trigger false positives."""
-        content = """
+        content = r"""
 # These should not be detected as secrets
 password = 'test_password'
 password = 'example'

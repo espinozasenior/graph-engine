@@ -12,6 +12,7 @@ A tool for analyzing code dependencies and visualizing them as a graph.
 
 2. **Graph Storage**: Stores the dependency graph.
    - `InMemoryGraphStorage`: Stores the graph in memory.
+   - `JSONGraphStorage`: Persists the graph to a JSON file.
 
 3. **Graph Manager**: Manages the dependency graph, handling updates and queries.
    - `DependencyGraphManager`: Coordinates parsing and storage.
@@ -20,6 +21,9 @@ A tool for analyzing code dependencies and visualizing them as a graph.
    - `GraphAPI`: FastAPI application that exposes graph data via HTTP endpoints.
 
 5. **File Watcher**: Watches for file changes and updates the graph automatically.
+
+6. **MCP Integration**: Provides a Machine-Callable Program interface for AI agents.
+   - `GraphEngineMCP`: Exposes graph data in smaller, manageable chunks via MCP.
 
 ## Setup
 
@@ -57,6 +61,14 @@ Once the server is running, you can access the following endpoints:
 
 - `GET /graph/nodes` - Retrieve all nodes in the dependency graph
 - `GET /graph/edges` - Retrieve all edges in the dependency graph
+- `GET /graph/nodes/{node_id}` - Get details for a specific node
+- `GET /graph/search?keyword={keyword}` - Search for nodes matching a keyword
+
+### MCP Integration for AI Agents
+
+The Graph Engine provides an MCP interface that allows AI agents to query the code graph in smaller, manageable chunks. This makes it ideal for exploring a codebase incrementally without having to process large amounts of data at once.
+
+For details on using the MCP integration, see [Using MCP with Graph Engine](docs/using_mcp.md).
 
 ### Using the TreeSitterParser
 
@@ -102,4 +114,4 @@ pytest
 
 ## License
 
-[MIT License](LICENSE)
+[MIT License](LICENSE.md)
