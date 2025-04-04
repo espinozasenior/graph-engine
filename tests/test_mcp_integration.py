@@ -225,6 +225,7 @@ class TestGraphEngineMCP:
 class TestGraphEngineMCPHandlers:
     """Tests for the MCP tool handlers."""
     
+    @pytest.mark.asyncio
     async def test_handle_list_nodes(self, mcp_integration):
         """Test the list_nodes MCP handler."""
         request = CallToolRequest(
@@ -241,6 +242,7 @@ class TestGraphEngineMCPHandlers:
         assert "nodes" in data
         assert len(data["nodes"]) <= 5
     
+    @pytest.mark.asyncio
     async def test_handle_get_node_details_found(self, mcp_integration):
         """Test the get_node_details MCP handler for an existing node."""
         request = CallToolRequest(
@@ -255,6 +257,7 @@ class TestGraphEngineMCPHandlers:
         data = json.loads(result.content[0].text)
         assert data["node_id"] == "node1"
     
+    @pytest.mark.asyncio
     async def test_handle_get_node_details_not_found(self, mcp_integration):
         """Test the get_node_details MCP handler for a non-existent node."""
         request = CallToolRequest(
@@ -266,6 +269,7 @@ class TestGraphEngineMCPHandlers:
         assert result.isError
         assert "not found" in result.content[0].text
     
+    @pytest.mark.asyncio
     async def test_handle_search_nodes(self, mcp_integration):
         """Test the search_nodes MCP handler."""
         request = CallToolRequest(
@@ -281,6 +285,7 @@ class TestGraphEngineMCPHandlers:
         assert len(data["nodes"]) <= 3
         assert all("file1.py" in node["filepath"] for node in data["nodes"])
     
+    @pytest.mark.asyncio
     async def test_handle_list_edges_for_node(self, mcp_integration):
         """Test the list_edges_for_node MCP handler."""
         request = CallToolRequest(
@@ -295,6 +300,7 @@ class TestGraphEngineMCPHandlers:
         assert "edges" in data
         assert len(data["edges"]) == 2  # node1 -> node2 and node3 -> node1
     
+    @pytest.mark.asyncio
     async def test_handle_list_edges_for_node_not_found(self, mcp_integration):
         """Test the list_edges_for_node MCP handler for a non-existent node."""
         request = CallToolRequest(
@@ -306,6 +312,7 @@ class TestGraphEngineMCPHandlers:
         assert result.isError
         assert "not found" in result.content[0].text
         
+    @pytest.mark.asyncio
     async def test_handle_find_functions_by_keyword(self, mcp_integration):
         """Test the find_functions_by_keyword MCP handler."""
         request = CallToolRequest(
@@ -321,6 +328,7 @@ class TestGraphEngineMCPHandlers:
         assert "functions" in data
         assert any(function["name"] == "search_keyword" for function in data["functions"])
         
+    @pytest.mark.asyncio
     async def test_handle_find_functions_by_keyword_not_found(self, mcp_integration):
         """Test the find_functions_by_keyword MCP handler with no matches."""
         request = CallToolRequest(
@@ -335,6 +343,7 @@ class TestGraphEngineMCPHandlers:
         assert "functions" in data
         assert len(data["functions"]) == 0
         
+    @pytest.mark.asyncio
     async def test_handle_find_functions_by_keyword_missing_argument(self, mcp_integration):
         """Test the find_functions_by_keyword MCP handler with a missing keyword argument."""
         request = CallToolRequest(
@@ -346,6 +355,7 @@ class TestGraphEngineMCPHandlers:
         assert result.isError
         assert "Missing or invalid 'keyword' argument" in result.content[0].text
         
+    @pytest.mark.asyncio
     async def test_handle_find_functions_calling_filepath(self, mcp_integration):
         """Test the find_functions_calling_filepath MCP handler."""
         request = CallToolRequest(
@@ -360,6 +370,7 @@ class TestGraphEngineMCPHandlers:
         assert "functions" in data
         assert any(function["node_id"] == "function:file2.search_keyword" for function in data["functions"])
         
+    @pytest.mark.asyncio
     async def test_handle_find_functions_calling_filepath_not_found(self, mcp_integration):
         """Test the find_functions_calling_filepath MCP handler with no matches."""
         request = CallToolRequest(
@@ -374,6 +385,7 @@ class TestGraphEngineMCPHandlers:
         assert "functions" in data
         assert len(data["functions"]) == 0
         
+    @pytest.mark.asyncio
     async def test_handle_find_functions_calling_filepath_missing_argument(self, mcp_integration):
         """Test the find_functions_calling_filepath MCP handler with a missing filepath argument."""
         request = CallToolRequest(
