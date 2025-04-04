@@ -22,11 +22,25 @@ jobs:
         pip install -r requirements.txt
         # pytest, httpx, and tree-sitter are now in requirements.txt
 
-    - name: Run tests
-      run: pytest -v
+    - name: Run tests with coverage
+      run: pytest -v --cov=graph_core --cov-report=html # Generate HTML coverage report in htmlcov/
+
+    - name: Generate graph snapshot
+      # Assuming run_graph_manager.py can take src dir and output path
+      # You might need to adjust this command based on actual script arguments
+      run: python run_graph_manager.py --src-dir src --output graph_snapshot.json 
 
     - name: Run performance profiler
       run: python performance/profiler.py # Adjust if arguments or specific output handling is needed
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: analysis-artifacts
+        path: |
+          graph_snapshot.json
+          htmlcov/
+      if: always() # Upload even if previous steps fail
 
     - name: Upload graph snapshot artifact (Example)
       uses: actions/upload-artifact@v4
