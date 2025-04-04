@@ -1,0 +1,1101 @@
+{
+  "nodes": [
+    {
+      "id": "function:__init__",
+      "type": "function",
+      "name": "__init__",
+      "filepath": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+      "start_line": 10,
+      "end_line": 11,
+      "files": [
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+        "src\\test_demo\\graph_node.py",
+        "src\\sample.py",
+        "src\\nested_example.py",
+        "src\\sample_module.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_node.py"
+      ]
+    },
+    {
+      "id": "function:greet",
+      "type": "function",
+      "name": "greet",
+      "filepath": "src\\sample_module.py",
+      "start_line": 50,
+      "end_line": 51,
+      "files": [
+        "src\\sample_module.py",
+        "src\\sample.py",
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:celebrate_birthday",
+      "type": "function",
+      "name": "celebrate_birthday",
+      "filepath": "src\\sample.py",
+      "start_line": 37,
+      "end_line": 38,
+      "files": [
+        "src\\sample.py",
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "class:Person",
+      "type": "class",
+      "name": "Person",
+      "filepath": "src\\sample_module.py",
+      "start_line": 41,
+      "end_line": 42,
+      "files": [
+        "src\\sample_module.py",
+        "src\\sample.py",
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:calculate_future_date",
+      "type": "function",
+      "name": "calculate_future_date",
+      "filepath": "src\\sample_module.py",
+      "start_line": 18,
+      "end_line": 19,
+      "files": [
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:add",
+      "type": "function",
+      "name": "add",
+      "filepath": "src\\sample_module.py",
+      "start_line": 31,
+      "end_line": 32,
+      "files": [
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:subtract",
+      "type": "function",
+      "name": "subtract",
+      "filepath": "src\\sample_module.py",
+      "start_line": 36,
+      "end_line": 37,
+      "files": [
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "class:Calculator",
+      "type": "class",
+      "name": "Calculator",
+      "filepath": "src\\sample_module.py",
+      "start_line": 24,
+      "end_line": 25,
+      "files": [
+        "src\\sample_module.py",
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "module:graph_node.py",
+      "type": "module",
+      "name": "graph_node.py",
+      "filepath": "src\\test_demo\\graph_node.py",
+      "start_line": 1,
+      "end_line": 57,
+      "files": [
+        "src\\test_demo\\graph_node.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_node.py"
+      ],
+      "content_hash": "5d65fe61dad9bbb778013f25b348b8c357c81cd7641a57a46145af5ead9ba6db"
+    },
+    {
+      "id": "function:add_connection",
+      "type": "function",
+      "name": "add_connection",
+      "filepath": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+      "start_line": 16,
+      "end_line": 17,
+      "files": [
+        "src\\test_demo\\graph_node.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_node.py"
+      ]
+    },
+    {
+      "id": "function:to_dict",
+      "type": "function",
+      "name": "to_dict",
+      "filepath": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+      "start_line": 24,
+      "end_line": 25,
+      "files": [
+        "src\\test_demo\\graph_node.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_node.py"
+      ]
+    },
+    {
+      "id": "function:create_example_graph",
+      "type": "function",
+      "name": "create_example_graph",
+      "filepath": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+      "start_line": 34,
+      "end_line": 35,
+      "files": [
+        "src\\test_demo\\graph_node.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_node.py"
+      ]
+    },
+    {
+      "id": "class:GraphNode",
+      "type": "class",
+      "name": "GraphNode",
+      "filepath": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+      "start_line": 7,
+      "end_line": 8,
+      "files": [
+        "src\\test_demo\\graph_node.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_node.py"
+      ]
+    },
+    {
+      "id": "module:config.py",
+      "type": "module",
+      "name": "config.py",
+      "filepath": "src\\test_demo\\config.py",
+      "start_line": 1,
+      "end_line": 29,
+      "files": [
+        "src\\test_demo\\config.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\config.py"
+      ],
+      "content_hash": "7fb97e251a3540efea11da603b16b44248aa2c9fcc590a49c5d968613208ebcd"
+    },
+    {
+      "id": "function:get_database_url",
+      "type": "function",
+      "name": "get_database_url",
+      "filepath": "src\\test_demo\\config.py",
+      "start_line": 20,
+      "end_line": 21,
+      "files": [
+        "src\\test_demo\\config.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\config.py"
+      ]
+    },
+    {
+      "id": "function:get_api_credentials",
+      "type": "function",
+      "name": "get_api_credentials",
+      "filepath": "src\\test_demo\\config.py",
+      "start_line": 24,
+      "end_line": 25,
+      "files": [
+        "src\\test_demo\\config.py",
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\config.py"
+      ]
+    },
+    {
+      "id": "module:nested_example.py",
+      "type": "module",
+      "name": "nested_example.py",
+      "filepath": "src\\nested_example.py",
+      "start_line": 1,
+      "end_line": 115,
+      "files": [
+        "src\\nested_example.py"
+      ],
+      "content_hash": "4c0d2ee9080e2e17f2ca7297a2c76285d3bb3c09592288eb68797f7e7e214797"
+    },
+    {
+      "id": "function:outer_function",
+      "type": "function",
+      "name": "outer_function",
+      "filepath": "src\\nested_example.py",
+      "start_line": 11,
+      "end_line": 12,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:inner_function",
+      "type": "function",
+      "name": "inner_function",
+      "filepath": "src\\nested_example.py",
+      "start_line": 20,
+      "end_line": 21,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:generate_greeting",
+      "type": "function",
+      "name": "generate_greeting",
+      "filepath": "src\\nested_example.py",
+      "start_line": 58,
+      "end_line": 59,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:create_counter",
+      "type": "function",
+      "name": "create_counter",
+      "filepath": "src\\nested_example.py",
+      "start_line": 83,
+      "end_line": 84,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:increment",
+      "type": "function",
+      "name": "increment",
+      "filepath": "src\\nested_example.py",
+      "start_line": 92,
+      "end_line": 93,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "function:run_async_demo",
+      "type": "function",
+      "name": "run_async_demo",
+      "filepath": "src\\nested_example.py",
+      "start_line": 106,
+      "end_line": 107,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "class:methods",
+      "type": "class",
+      "name": "methods",
+      "filepath": "src\\nested_example.py",
+      "start_line": 5,
+      "end_line": 6,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "class:with",
+      "type": "class",
+      "name": "with",
+      "filepath": "src\\nested_example.py",
+      "start_line": 39,
+      "end_line": 40,
+      "files": [
+        "src\\nested_example.py"
+      ]
+    },
+    {
+      "id": "module:sample.js",
+      "type": "module",
+      "name": "sample.js",
+      "filepath": "src\\sample.js",
+      "start_line": 1,
+      "end_line": 130,
+      "files": [
+        "src\\sample.js"
+      ],
+      "content_hash": "29ceeb7b7264b95931b1ce7a632b2d0e440d5d84bc59744280fbbfc2579b1c8a"
+    },
+    {
+      "id": "function:readJsonFile",
+      "type": "function",
+      "name": "readJsonFile",
+      "filepath": "src\\sample.js",
+      "start_line": 45,
+      "end_line": 46,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "function:processAnimals",
+      "type": "function",
+      "name": "processAnimals",
+      "filepath": "src\\sample.js",
+      "start_line": 68,
+      "end_line": 69,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "function:call",
+      "type": "function",
+      "name": "call",
+      "filepath": "src\\sample.js",
+      "start_line": 113,
+      "end_line": 114,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "class:Animal",
+      "type": "class",
+      "name": "Animal",
+      "filepath": "src\\sample.js",
+      "start_line": 13,
+      "end_line": 14,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "class:Dog",
+      "type": "class",
+      "name": "Dog",
+      "filepath": "src\\sample.js",
+      "start_line": 29,
+      "end_line": 30,
+      "files": [
+        "src\\sample.js"
+      ]
+    },
+    {
+      "id": "module:sample.py",
+      "type": "module",
+      "name": "sample.py",
+      "filepath": "src\\sample.py",
+      "start_line": 1,
+      "end_line": 122,
+      "files": [
+        "src\\sample.py"
+      ],
+      "content_hash": "8c169440b5024865e1d2f31a9174ea0a075acab5adef17a78738a8ba1c27b0a3"
+    },
+    {
+      "id": "function:get_name",
+      "type": "function",
+      "name": "get_name",
+      "filepath": "src\\sample.py",
+      "start_line": 20,
+      "end_line": 21,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:use_imported_functions",
+      "type": "function",
+      "name": "use_imported_functions",
+      "filepath": "src\\sample.py",
+      "start_line": 68,
+      "end_line": 69,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "function:main",
+      "type": "function",
+      "name": "main",
+      "filepath": "src\\sample.py",
+      "start_line": 91,
+      "end_line": 92,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "class:BaseClass",
+      "type": "class",
+      "name": "BaseClass",
+      "filepath": "src\\sample.py",
+      "start_line": 13,
+      "end_line": 14,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "class:to",
+      "type": "class",
+      "name": "to",
+      "filepath": "src\\sample.py",
+      "start_line": 14,
+      "end_line": 15,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "class:representing",
+      "type": "class",
+      "name": "representing",
+      "filepath": "src\\sample.py",
+      "start_line": 26,
+      "end_line": 27,
+      "files": [
+        "src\\sample.py"
+      ]
+    },
+    {
+      "id": "module:sample.tsx",
+      "type": "module",
+      "name": "sample.tsx",
+      "filepath": "src\\sample.tsx",
+      "start_line": 1,
+      "end_line": 110,
+      "files": [
+        "src\\sample.tsx"
+      ],
+      "content_hash": "2b4dd5060ee9fc9614c827a72f3d4334c0651b4b11cc64411aad738fcc869c46"
+    },
+    {
+      "id": "function:calculateAge",
+      "type": "function",
+      "name": "calculateAge",
+      "filepath": "src\\sample.tsx",
+      "start_line": 56,
+      "end_line": 57,
+      "files": [
+        "src\\sample.tsx"
+      ]
+    },
+    {
+      "id": "class:abstract",
+      "type": "class",
+      "name": "abstract",
+      "filepath": "src\\sample.tsx",
+      "start_line": 20,
+      "end_line": 21,
+      "files": [
+        "src\\sample.tsx"
+      ]
+    },
+    {
+      "id": "class:BaseEntity",
+      "type": "class",
+      "name": "BaseEntity",
+      "filepath": "src\\sample.tsx",
+      "start_line": 21,
+      "end_line": 22,
+      "files": [
+        "src\\sample.tsx"
+      ]
+    },
+    {
+      "id": "class:User",
+      "type": "class",
+      "name": "User",
+      "filepath": "src\\sample.tsx",
+      "start_line": 36,
+      "end_line": 37,
+      "files": [
+        "src\\sample.tsx"
+      ]
+    },
+    {
+      "id": "module:sample_module.py",
+      "type": "module",
+      "name": "sample_module.py",
+      "filepath": "src\\sample_module.py",
+      "start_line": 1,
+      "end_line": 83,
+      "files": [
+        "src\\sample_module.py"
+      ],
+      "content_hash": "0934d6fdc459922318fa06e54104196aefe72a72ac65f000befbb3be27347f66"
+    },
+    {
+      "id": "function:hello",
+      "type": "function",
+      "name": "hello",
+      "filepath": "src\\sample_module.py",
+      "start_line": 9,
+      "end_line": 10,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    },
+    {
+      "id": "function:greeting",
+      "type": "function",
+      "name": "greeting",
+      "filepath": "src\\sample_module.py",
+      "start_line": 14,
+      "end_line": 15,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    },
+    {
+      "id": "function:calculate_birthday",
+      "type": "function",
+      "name": "calculate_birthday",
+      "filepath": "src\\sample_module.py",
+      "start_line": 54,
+      "end_line": 55,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    },
+    {
+      "id": "function:async_function",
+      "type": "function",
+      "name": "async_function",
+      "filepath": "src\\sample_module.py",
+      "start_line": 59,
+      "end_line": 60,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    },
+    {
+      "id": "function:math_operations",
+      "type": "function",
+      "name": "math_operations",
+      "filepath": "src\\sample_module.py",
+      "start_line": 63,
+      "end_line": 64,
+      "files": [
+        "src\\sample_module.py"
+      ]
+    },
+    {
+      "id": "module:graph_core.py",
+      "type": "module",
+      "name": "graph_core.py",
+      "filepath": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py",
+      "start_line": 1,
+      "end_line": 57,
+      "files": [
+        "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py"
+      ],
+      "content_hash": "5d65fe61dad9bbb778013f25b348b8c357c81cd7641a57a46145af5ead9ba6db"
+    }
+  ],
+  "edges": [
+    {
+      "source": "module:graph_node.py",
+      "target": "function:__init__",
+      "type": "contains",
+      "id": "contains:d145aed4-a70c-4ff1-8106-0658c89f89cc",
+      "file": "src\\test_demo\\graph_node.py"
+    },
+    {
+      "source": "module:graph_node.py",
+      "target": "function:add_connection",
+      "type": "contains",
+      "id": "contains:b77f197c-3189-498d-baa5-74eb6ba2df00",
+      "file": "src\\test_demo\\graph_node.py"
+    },
+    {
+      "source": "module:graph_node.py",
+      "target": "function:to_dict",
+      "type": "contains",
+      "id": "contains:dad7ea95-5e42-4bfc-8d04-404bc6a66706",
+      "file": "src\\test_demo\\graph_node.py"
+    },
+    {
+      "source": "module:graph_node.py",
+      "target": "function:create_example_graph",
+      "type": "contains",
+      "id": "contains:d937083b-ea3c-4ff6-bf54-5bfc0673a8db",
+      "file": "src\\test_demo\\graph_node.py"
+    },
+    {
+      "source": "module:graph_node.py",
+      "target": "class:GraphNode",
+      "type": "contains",
+      "id": "contains:6085438c-9d76-43be-8f2f-05a2ffddd4a5",
+      "file": "src\\test_demo\\graph_node.py"
+    },
+    {
+      "source": "module:config.py",
+      "target": "function:get_database_url",
+      "type": "contains",
+      "id": "contains:be6f30f8-fe93-48c5-a4b5-c49c11d0fc16",
+      "file": "src\\test_demo\\config.py"
+    },
+    {
+      "source": "module:config.py",
+      "target": "function:get_api_credentials",
+      "type": "contains",
+      "id": "contains:99072178-654b-46eb-9e3c-2dae4c1703c1",
+      "file": "src\\test_demo\\config.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:outer_function",
+      "type": "contains",
+      "id": "contains:18aed87e-ac54-4803-b39f-ab542173a23c",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:inner_function",
+      "type": "contains",
+      "id": "contains:da79f54a-f514-4053-8361-1b0c6b6b1704",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:__init__",
+      "type": "contains",
+      "id": "contains:9c840639-ceac-456b-a2d8-38c78b700550",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:greet",
+      "type": "contains",
+      "id": "contains:a77880c6-b4aa-4690-b765-74d20ade0b57",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:generate_greeting",
+      "type": "contains",
+      "id": "contains:97d6e338-3147-41d9-8f17-3a241fa04edd",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:celebrate_birthday",
+      "type": "contains",
+      "id": "contains:2d288c7a-75d3-4688-ac5f-6889dd96cf37",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:create_counter",
+      "type": "contains",
+      "id": "contains:6c826b62-b7df-4006-aa0c-6d3faf815a11",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:increment",
+      "type": "contains",
+      "id": "contains:5bcd8521-9429-499e-9503-e9f55aa8f517",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "function:run_async_demo",
+      "type": "contains",
+      "id": "contains:ab6e1757-fdc7-4108-a718-8fdb3bddf611",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "class:methods",
+      "type": "contains",
+      "id": "contains:41fe468f-15b2-48d3-9936-0a730da7ea57",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "class:Person",
+      "type": "contains",
+      "id": "contains:cf875d7e-b84d-4a50-bac3-1c2d2fac8928",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:nested_example.py",
+      "target": "class:with",
+      "type": "contains",
+      "id": "contains:cf8fa4db-010d-434e-a03a-36bf0bcf00bb",
+      "file": "src\\nested_example.py"
+    },
+    {
+      "source": "module:sample.js",
+      "target": "function:readJsonFile",
+      "type": "contains",
+      "id": "contains:b42e9fcd-5ed7-4a78-98a8-140b429d7345",
+      "file": "src\\sample.js"
+    },
+    {
+      "source": "module:sample.js",
+      "target": "function:processAnimals",
+      "type": "contains",
+      "id": "contains:026471a5-39e9-4305-83af-5d90fd0b9689",
+      "file": "src\\sample.js"
+    },
+    {
+      "source": "module:sample.js",
+      "target": "function:call",
+      "type": "contains",
+      "id": "contains:202ade37-f996-4cad-9718-20fdf6b36902",
+      "file": "src\\sample.js"
+    },
+    {
+      "source": "module:sample.js",
+      "target": "class:Animal",
+      "type": "contains",
+      "id": "contains:8e016a2c-7f0f-4243-9656-585693d86333",
+      "file": "src\\sample.js"
+    },
+    {
+      "source": "module:sample.js",
+      "target": "class:Dog",
+      "type": "contains",
+      "id": "contains:70a8d23b-831d-421c-8ea5-79d5a1239524",
+      "file": "src\\sample.js"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:__init__",
+      "type": "contains",
+      "id": "contains:73f190ed-60c5-4589-8efd-7f610aa9618c",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:get_name",
+      "type": "contains",
+      "id": "contains:c5344d32-cabb-40b9-8409-9cb38c7b6a92",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:greet",
+      "type": "contains",
+      "id": "contains:e444d381-0b74-468b-8399-5ab9474908a2",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:celebrate_birthday",
+      "type": "contains",
+      "id": "contains:5a1a5e20-a1e0-48fa-a1a5-71d0c5d7c9eb",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:calculate_future_date",
+      "type": "contains",
+      "id": "contains:b7f37c32-66d0-4638-b3e9-810e8dd8da8e",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:add",
+      "type": "contains",
+      "id": "contains:9c5df7a3-1b96-4753-85c6-7d91f83d8e14",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:subtract",
+      "type": "contains",
+      "id": "contains:17213b00-a7e7-488a-93a3-f09fd5a16840",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:use_imported_functions",
+      "type": "contains",
+      "id": "contains:ce11df73-c592-4454-90e9-3a2e35985afa",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "function:main",
+      "type": "contains",
+      "id": "contains:70782516-8e18-4851-a467-7e4e490c0435",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "class:BaseClass",
+      "type": "contains",
+      "id": "contains:9b33315a-c3e1-49a2-b66b-2a6533feb021",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "class:to",
+      "type": "contains",
+      "id": "contains:643fbb77-1cc9-4e44-b2a9-75dcbf730076",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "class:Person",
+      "type": "contains",
+      "id": "contains:0a8e2025-85f8-4edf-9d56-1da3d9c3e815",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "class:representing",
+      "type": "contains",
+      "id": "contains:4f143108-61aa-46ed-96f3-171c8863db5c",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.py",
+      "target": "class:Calculator",
+      "type": "contains",
+      "id": "contains:b6ae273e-afaa-4272-807f-0a3a875930fa",
+      "file": "src\\sample.py"
+    },
+    {
+      "source": "module:sample.tsx",
+      "target": "function:calculateAge",
+      "type": "contains",
+      "id": "contains:77d357e5-7a8e-4b63-8daa-67940cae2783",
+      "file": "src\\sample.tsx"
+    },
+    {
+      "source": "module:sample.tsx",
+      "target": "class:abstract",
+      "type": "contains",
+      "id": "contains:71940908-969f-46c6-b853-73adbec1aa72",
+      "file": "src\\sample.tsx"
+    },
+    {
+      "source": "module:sample.tsx",
+      "target": "class:BaseEntity",
+      "type": "contains",
+      "id": "contains:3b43f57e-8ad0-4f06-bbfb-812c379c53d2",
+      "file": "src\\sample.tsx"
+    },
+    {
+      "source": "module:sample.tsx",
+      "target": "class:User",
+      "type": "contains",
+      "id": "contains:98dfb555-8e5f-47b7-aeaf-f42a669ce14d",
+      "file": "src\\sample.tsx"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:hello",
+      "type": "contains",
+      "id": "contains:3ced9eb3-3b97-4a9b-a4c9-137f93c46bd2",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:greeting",
+      "type": "contains",
+      "id": "contains:db822db1-1f97-43df-adaa-1155683b07f5",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:calculate_future_date",
+      "type": "contains",
+      "id": "contains:c260fa72-6b6a-4411-b81d-7d9944672d75",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:__init__",
+      "type": "contains",
+      "id": "contains:3ad08826-30e4-4af6-a4d6-41d29bf30ef7",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:add",
+      "type": "contains",
+      "id": "contains:d90a7ae5-1ebc-4a25-ade2-bf314eb15066",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:subtract",
+      "type": "contains",
+      "id": "contains:732d5dd9-da4a-4742-890d-7db223147eb3",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:greet",
+      "type": "contains",
+      "id": "contains:09456678-fa38-4d54-80e6-9a3ef382bf79",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:calculate_birthday",
+      "type": "contains",
+      "id": "contains:c0e7d0d0-afcb-4c49-be63-3a8774b02e77",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:async_function",
+      "type": "contains",
+      "id": "contains:cdbd93f2-6105-46f0-b845-e1e9a33c31ed",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "function:math_operations",
+      "type": "contains",
+      "id": "contains:b3b7c95b-7c35-415f-bf93-004f404f42f6",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "class:Calculator",
+      "type": "contains",
+      "id": "contains:2ff85f29-5fac-4c2e-93f3-0eeecb995065",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:sample_module.py",
+      "target": "class:Person",
+      "type": "contains",
+      "id": "contains:a89e2803-09a7-4746-b3a3-d8ffe79c7981",
+      "file": "src\\sample_module.py"
+    },
+    {
+      "source": "module:graph_core.py",
+      "target": "function:__init__",
+      "type": "contains",
+      "id": "contains:d2350680-864e-42bb-a274-abbc186ef516",
+      "file": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py"
+    },
+    {
+      "source": "module:graph_core.py",
+      "target": "function:add_connection",
+      "type": "contains",
+      "id": "contains:416b917b-6893-49ef-9272-5180f883bf81",
+      "file": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py"
+    },
+    {
+      "source": "module:graph_core.py",
+      "target": "function:to_dict",
+      "type": "contains",
+      "id": "contains:545ce3b8-db86-47e3-aefe-f8af0af9f77e",
+      "file": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py"
+    },
+    {
+      "source": "module:graph_core.py",
+      "target": "function:create_example_graph",
+      "type": "contains",
+      "id": "contains:a5275545-7d8a-4994-ac81-c852bcaa4356",
+      "file": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py"
+    },
+    {
+      "source": "module:graph_core.py",
+      "target": "class:GraphNode",
+      "type": "contains",
+      "id": "contains:77abf3cf-85ef-4b45-b0d8-387a3af3fe9f",
+      "file": "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py"
+    }
+  ],
+  "file_nodes": {
+    "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_node.py": [
+      "function:create_example_graph",
+      "function:to_dict",
+      "class:GraphNode",
+      "module:graph_node.py",
+      "function:add_connection",
+      "function:__init__"
+    ],
+    "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\config.py": [
+      "function:get_database_url",
+      "module:config.py",
+      "function:get_api_credentials"
+    ],
+    "src\\nested_example.py": [
+      "function:increment",
+      "class:with",
+      "function:generate_greeting",
+      "function:run_async_demo",
+      "function:celebrate_birthday",
+      "function:create_counter",
+      "class:methods",
+      "class:Person",
+      "module:nested_example.py",
+      "function:greet",
+      "function:inner_function",
+      "function:outer_function",
+      "function:__init__"
+    ],
+    "src\\sample.js": [
+      "function:processAnimals",
+      "function:readJsonFile",
+      "class:Dog",
+      "class:Animal",
+      "function:call",
+      "module:sample.js"
+    ],
+    "src\\sample.py": [
+      "class:representing",
+      "class:to",
+      "function:celebrate_birthday",
+      "class:Calculator",
+      "function:main",
+      "module:sample.py",
+      "function:__init__",
+      "class:BaseClass",
+      "function:use_imported_functions",
+      "class:Person",
+      "function:add",
+      "function:greet",
+      "function:subtract",
+      "function:calculate_future_date",
+      "function:get_name"
+    ],
+    "src\\sample.tsx": [
+      "function:calculateAge",
+      "class:User",
+      "module:sample.tsx",
+      "class:abstract",
+      "class:BaseEntity"
+    ],
+    "src\\sample_module.py": [
+      "function:greeting",
+      "module:sample_module.py",
+      "function:async_function",
+      "class:Calculator",
+      "function:calculate_birthday",
+      "class:Person",
+      "function:hello",
+      "function:add",
+      "function:greet",
+      "function:subtract",
+      "function:calculate_future_date",
+      "function:math_operations",
+      "function:__init__"
+    ],
+    "src\\test_demo\\config.py": [
+      "function:get_database_url",
+      "module:config.py",
+      "function:get_api_credentials"
+    ],
+    "src\\test_demo\\graph_node.py": [
+      "function:create_example_graph",
+      "function:to_dict",
+      "class:GraphNode",
+      "module:graph_node.py",
+      "function:add_connection",
+      "function:__init__"
+    ],
+    "C:\\Users\\janek\\OneDrive\\Documents\\graph-engine\\src\\test_demo\\graph_core.py": [
+      "function:create_example_graph",
+      "function:to_dict",
+      "class:GraphNode",
+      "module:graph_core.py",
+      "function:add_connection",
+      "function:__init__"
+    ]
+  }
+}
