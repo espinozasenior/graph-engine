@@ -107,59 +107,39 @@ class JSONGraphStorage:
                 if lock_acquired:
                     self._release_file_lock()
     
-    def _acquire_file_lock(self, max_attempts: int = 10, delay_base: float = 0.1) -> bool:
+    def _acquire_file_lock(self) -> bool:
         """
         Acquire a lock on the file for writing.
-        
-        Uses a separate lock file with the process ID to ensure exclusive access.
-        Implements exponential backoff with jitter for retries.
-        
-        Args:
-            max_attempts: Maximum number of attempts to acquire the lock
-            delay_base: Base delay between attempts (will be increased exponentially)
-            
+
+        Uses a lock file to ensure exclusive access.
+        This is a simplified, non-blocking version.
+
         Returns:
             True if lock was acquired, False otherwise
         """
-        pid = os.getpid()
-        temp_lock_file = f"{self._lock_file}.{pid}"
-        
-        for attempt in range(max_attempts):
+        try:
+            # O_CREAT | O_EXCL will fail if the file already exists.
+            # This is an atomic operation on most systems.
+            fd = os.open(self._lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            logger.debug(f"Acquired file lock: {self._lock_file}")
+            return True
+        except FileExistsError:
+            logger.debug(f"Lock file {self._lock_file} already exists.")
+            # Check if the lock is stale
             try:
-                # Try to create a temporary lock file
-                if not os.path.exists(os.path.dirname(temp_lock_file)):
-                    os.makedirs(os.path.dirname(temp_lock_file), exist_ok=True)
-                
-                with open(temp_lock_file, 'w') as f:
-                    f.write(str(pid))
-                
-                # Try to create a hard link to the actual lock file
-                # This will fail if the lock file already exists
-                try:
-                    # Atomically create lock file if it doesn't exist
-                    os.link(temp_lock_file, self._lock_file)
-                    logger.debug(f"Acquired file lock: {self._lock_file}")
-                    return True
-                except FileExistsError:
-                    # Lock file exists, check if it's stale (older than 60 seconds)
-                    if os.path.exists(self._lock_file):
-                        lock_age = time.time() - os.path.getmtime(self._lock_file)
-                        if lock_age > 60:  # 60 seconds
-                            logger.warning(f"Found stale lock file (age: {lock_age:.1f}s). Breaking lock.")
-                            os.remove(self._lock_file)
-                            continue  # Try again immediately
-                
-                # If we can't acquire the lock, wait with exponential backoff and jitter
-                delay = delay_base * (2 ** attempt) * (0.5 + random.random())
-                logger.debug(f"Failed to acquire lock, retry in {delay:.2f}s (attempt {attempt+1}/{max_attempts})")
-                time.sleep(delay)
-            
-            finally:
-                # Clean up the temporary lock file
-                if os.path.exists(temp_lock_file):
-                    os.remove(temp_lock_file)
-        
-        logger.error(f"Failed to acquire file lock after {max_attempts} attempts")
+                lock_age = time.time() - os.path.getmtime(self._lock_file)
+                if lock_age > 60:  # 60 seconds
+                    logger.warning(f"Found stale lock file (age: {lock_age:.1f}s). Breaking lock.")
+                    self._release_file_lock() # Release the old lock
+                    # Try to acquire it again
+                    return self._acquire_file_lock()
+            except FileNotFoundError:
+                # The lock was released by another process between our check and getmtime
+                return self._acquire_file_lock() # Try again
+            except Exception as e:
+                logger.error(f"Error checking stale lock: {e}")
+
         return False
     
     def _release_file_lock(self) -> None:
@@ -569,4 +549,4 @@ class JSONGraphStorage:
 # Helper function for hashing (can be placed here or in a utils module)
 def calculate_content_hash(content: bytes) -> str:
     """Calculates the SHA-256 hash of the given content."""
-    return hashlib.sha256(content).hexdigest() 
+    return hashlib.sha256(content).hexdigest()
