@@ -165,11 +165,23 @@ def build_with_setuptools(lang, repo_dir, verbose=False):
         # Check if scanner file exists
         scanner_exists = (src_path / 'scanner.c').exists()
         
+        # Get include path from tree_sitter package
+        try:
+            import tree_sitter
+            ts_include_dir = fix_path_for_windows(Path(tree_sitter.__file__).parent / 'include')
+        except (ImportError, AttributeError):
+            ts_include_dir = None
+
         # Build sources list
         sources = [f'"{parser_path}"']
         if scanner_exists:
             sources.append(f'"{scanner_path}"')
         
+        # Build include_dirs list
+        include_dirs = [f'"{src_path_str}"']
+        if ts_include_dir and (Path(tree_sitter.__file__).parent / 'include').exists():
+            include_dirs.append(f'"{ts_include_dir}"')
+
         setup_content = f"""
 from setuptools import setup, Extension
 
@@ -178,7 +190,7 @@ extension = Extension(
     sources=[
         {', '.join(sources)}
     ],
-    include_dirs=["{src_path_str}"],
+    include_dirs=[{', '.join(include_dirs)}],
     extra_compile_args=["-std=c99"],
 )
 
@@ -213,7 +225,7 @@ setup(
         
         # Find the built extension file
         ext_suffix = '.pyd' if platform.system() == 'Windows' else '.so'
-        built_files = list(base_path.glob(f"{lang}*{ext_suffix}"))
+        built_files = list(base_path.glob(f"**/{lang}*{ext_suffix}"))
         
         if not built_files:
             logger.error(f"No built extension file found in {base_path}")
@@ -341,56 +353,46 @@ def main():
     parser.add_argument('--verbose', action='store_true',
                         help='Enable verbose output from build commands')
     args = parser.parse_args()
-    
+
     # Set log level based on verbosity
     if args.verbose:
         logger.setLevel(logging.DEBUG)
         logger.debug("Verbose mode enabled")
-    
-    # Create the language directory
+
     ensure_dir_exists(LANGUAGE_DIR)
-    
-    # Build each language
+
     success_count = 0
-    
     for lang in args.languages:
-        logger.info(f"Building {lang} grammar")
-        
-        if args.method == 'dummy':
-            if create_dummy_so_file(lang):
-                success_count += 1
-            continue
-            
-        # For non-dummy methods, we need to clone the repository
+        logger.info(f"--- Building {lang} ---")
         repo_dir = clone_repo(lang, LANGUAGES[lang], args.verbose)
         if not repo_dir:
             logger.error(f"Failed to clone repository for {lang}")
             continue
-            
-        # Build the language grammar
-        if args.method == 'gcc':
-            if build_with_gcc(lang, repo_dir, args.verbose):
-                success_count += 1
-        elif args.method == 'setuptools':
+
+        build_successful = False
+        if args.method == 'setuptools':
             if build_with_setuptools(lang, repo_dir, args.verbose):
-                success_count += 1
-    
-    # Report results
-    if success_count == len(args.languages):
-        logger.info(f"Successfully built all {success_count} language grammars")
-    else:
-        logger.warning(f"Built {success_count} out of {len(args.languages)} language grammars")
+                build_successful = True
+        elif args.method == 'gcc':
+            if build_with_gcc(lang, repo_dir, args.verbose):
+                build_successful = True
+        elif args.method == 'dummy':
+            if create_dummy_so_file(lang):
+                build_successful = True
         
-        # Show help on next steps if no grammars were built
-        if success_count == 0:
-            logger.error("\nNo language grammars were built successfully. Please check that:")
-            logger.error("1. Python development files are installed (Python.h)")
-            logger.error("2. git is installed and available in your PATH")
-            logger.error("3. A C compiler is available (gcc/MSVC)")
-            logger.error("\nOn Windows, try installing Visual Studio Build Tools with C/C++ support.")
-            logger.error("On macOS, install Xcode Command Line Tools: xcode-select --install")
-            logger.error("On Linux, install Python dev package: sudo apt-get install python3-dev")
-            logger.error("\nAlternatively, use --method=dummy to generate placeholder files for testing.")
+        if build_successful:
+            success_count += 1
+        else:
+            logger.error(f"Failed to build grammar for {lang}")
+
+    logger.info(f"--- Build Summary ---")
+    logger.info(f"Successfully built {success_count} out of {len(args.languages)} language grammars.")
+
+    if success_count < len(args.languages):
+        logger.error("Some languages failed to build.")
+        sys.exit(1)
+    else:
+        logger.info("All language grammars built successfully.")
 
 
 if __name__ == "__main__":
