@@ -732,75 +732,31 @@ async def main():
             print("="*80 + "\n")
             
             # Start the MCP server in a background thread - use simplified version for unified mode
-            async def _run_simplified_mcp():
+            def _run_simplified_mcp():
                 try:
-                    # Define echo tool directly
-                    async def handle_echo(request: CallToolRequest) -> CallToolResult:
-                        """Echo handler that acknowledges the request."""
-                        try:
-                            arguments = request.params.arguments or {}
-                            message = arguments.get("message", "No message provided")
-                            return CallToolResult(content=[TextContent(type="text", text=f"Unified server received: {message}")])
-                        except Exception as e:
-                            return CallToolResult(
-                                isError=True,
-                                content=[TextContent(type="text", text=f"Error in echo handler: {str(e)}")]
-                            )
-                            
-                    echo_tool = Tool(
-                        name="echo",
-                        description="Echo the input message back. For testing the unified server's MCP capabilities.",
-                        inputSchema={
-                            "type": "object",
-                            "properties": {
-                                "message": {"type": "string", "description": "The message to echo back."}
-                            }
-                        },
-                        handler=handle_echo
-                    )
+                    logger.info("Starting simplified MCP server...")
                     
-                    # Create server with more defensive approach - try different constructor forms
+                    # Create server using FastMCP
                     logger.info("Starting simplified MCP server for unified mode...")
-                    try:
-                        # First try with tools parameter (works in MCP-only mode)
-                        mcp_server = server.Server(
-                            tools=[echo_tool],
-                            prompts=[],
-                            resources=[]
-                        )
-                    except TypeError:
-                        try:
-                            # Try with just the name parameter
-                            logger.info("Falling back to simpler Server constructor")
-                            mcp_server = server.Server(name="Graph Engine Unified Server - MCP Mode")
-                            
-                            # Try to register the tool
-                            try:
-                                # First try add_tool method
-                                mcp_server.add_tool(echo_tool)
-                            except AttributeError:
-                                # Then try tool registration via appending to tools list
-                                try:
-                                    mcp_server.tools.append(echo_tool)
-                                except Exception as e:
-                                    logger.warning(f"Could not register tool for MCP server: {e}")
-                                    # Continue even without tool registration
-                        except Exception as e:
-                            logger.error(f"Could not create MCP server: {e}")
-                            return  # Exit the async function
+                    from mcp.server.fastmcp import FastMCP
+                    
+                    mcp_server = FastMCP("unified-graph-server")
+                    
+                    # Register echo tool using decorator
+                    @mcp_server.tool()
+                    def echo(message: str) -> str:
+                        """Echo back a message"""
+                        return f"Echo: {message}"
                     
                     # Run the MCP server
-                    await server.stdio_main(mcp_server)
+                    mcp_server.run(transport='stdio')
                     
                 except Exception as e:
                     logger.exception(f"Error in simplified MCP server: {e}")
                     
             def _mcp_thread_target():
                 try:
-                    if sys.platform == 'win32':
-                        # Windows-specific event loop policy
-                        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-                    asyncio.run(_run_simplified_mcp())
+                    _run_simplified_mcp()
                 except Exception as e:
                     logger.exception(f"Fatal error in simplified MCP server thread: {e}")
             
@@ -832,4 +788,4 @@ if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Shutdown complete.") 
+        logger.info("Shutdown complete.")
