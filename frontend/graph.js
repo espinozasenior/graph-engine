@@ -592,11 +592,11 @@ document.addEventListener('DOMContentLoaded', function() {
     async function fetchGraphData() {
         try {
             loadingElement.textContent = 'Fetching nodes...';
-            const nodesResponse = await fetch('/graph/nodes');
+            const nodesResponse = await fetch('http://localhost:8000/graph/nodes');
             const nodesData = await nodesResponse.json();
             
             loadingElement.textContent = 'Fetching edges...';
-            const edgesResponse = await fetch('/graph/edges');
+            const edgesResponse = await fetch('http://localhost:8000/graph/edges');
             let edgesData = await edgesResponse.json();
             
             // If we have no edges but have nodes, generate edges
@@ -652,4 +652,4 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Disable auto-refresh to allow for better user interaction
     // setupAutoRefresh();
-}); 
+});
