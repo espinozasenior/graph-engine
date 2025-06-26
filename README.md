@@ -19,6 +19,7 @@ A comprehensive tool for analyzing code dependencies, visualizing them as a grap
 
 - Python 3.10+ 
 - pip
+- uv
 
 ### Steps
 
@@ -32,12 +33,18 @@ A comprehensive tool for analyzing code dependencies, visualizing them as a grap
    ```bash
    pip install -r requirements.txt
    ```
-
+   or
+   ```bash
+   uv sync
+   ```
 3. Build the Tree-sitter language libraries:
    ```bash
    python -m graph_core.analyzer.treesitter_parser.build_languages
    ```
-
+   or
+   ```bash
+   uv run build-languages
+   ```
 ## Usage
 
 ### Running the API Server
@@ -46,6 +53,10 @@ Start the API server with file watching:
 
 ```bash
 python run_graph_manager.py --watch-dir path/to/your/code --host 127.0.0.1 --port 8000
+```
+or
+```bash
+uv run run_graph_manager.py --watch-dir path/to/your/codebase --host 127.0.0.1 --port 8000
 ```
 
 This will:
@@ -58,10 +69,27 @@ This will:
 To generate a snapshot of your code's dependency graph:
 
 ```bash
-python generate_graph_snapshot.py --src-dir path/to/your/code --output graph_snapshot.json
+python generate_graph_snapshot.py --src-dir path/to/your/codebase --output graph_snapshot.json
+```
+This will analyze all supported files in the directory and save the graph data as a JSON file.
+
+### Run frontend
+```bash
+npx http-server frontend/ -p 8001
 ```
 
-This will analyze all supported files in the directory and save the graph data as a JSON file.
+#### Troubleshooting
+
+If you encounter issues with CORS, try opening the frontend in a browser with a CORS exception. For example:
+
+```bash
+google-chrome --user-data-dir --disable-web-security --allow-file-access-from-files
+
+# OR
+
+open -n -a "/Applications/Brave Browser.app" \
+        --args --user-data-dir="/tmp/brave_dev" --disable-web-security
+```
 
 ### Using Dynamic Instrumentation
 
